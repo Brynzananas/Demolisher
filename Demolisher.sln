@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.11.35222.181
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Demolisher", "DemolisherV1\Demolisher.csproj", "{15E34D31-2068-42B3-A149-14A7E5A6C21D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{15E34D31-2068-42B3-A149-14A7E5A6C21D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{15E34D31-2068-42B3-A149-14A7E5A6C21D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{15E34D31-2068-42B3-A149-14A7E5A6C21D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{15E34D31-2068-42B3-A149-14A7E5A6C21D}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {5663A0A0-2716-4CD0-993B-D0033BEC45A6}
+	EndGlobalSection
+EndGlobal
