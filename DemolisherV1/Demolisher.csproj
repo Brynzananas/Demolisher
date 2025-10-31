@@ -31,6 +31,10 @@
 			<HintPath>D:\SteamLibrary\steamapps\common\Risk of Rain 2\Risk of Rain 2_Data\Managed\Unity.Postprocessing.Runtime.dll</HintPath>
 		</Reference>
 	</ItemGroup>
+	
+	<ItemGroup>
+	  <Folder Include="ThundestoreImages\" />
+	</ItemGroup>
 
 	<Target Name="PostBuild" AfterTargets="PostBuildEvent">
 		<Exec Command="call weaver.bat $(TargetDir) $(AssemblyName)" />

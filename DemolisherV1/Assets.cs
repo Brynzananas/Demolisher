@@ -42,6 +42,7 @@ namespace Demolisher
         public static EffectDef Explosion;
         public static EffectDef DoubleDonk;
         public static EffectDef Rings;
+        public static EffectDef Trail;
         public static GameObject LemurianFireBallGhost;
         public static GameObject GrenadeProjectile;
         public static GameObject StickyProjectile;
@@ -50,6 +51,7 @@ namespace Demolisher
         public static GameObject DemolisherProjectile;
         public static SteppedSkillDef MediumMelee;
         public static SkillDef ShieldBash;
+        public static SkillDef ChainDash;
         public static DemolisherWeaponSkillDef Sharpness;
         public static DemolisherBulletAttackWeaponDef SharpnessWeapon;
         public static DemolisherWeaponSkillDef Softness;
@@ -87,6 +89,7 @@ namespace Demolisher
         public static BuffDef SharpnessCritAddition;
         public static BuffDef ChaosCooldown;
         public static BuffDef BombHit;
+        public static BuffDef InstantMeleeSwing;
         public static DamageAPI.ModdedDamageType SharpnessDamageType = DamageAPI.ReserveDamageType();
         public static DamageAPI.ModdedDamageType SoftnessDamageType = DamageAPI.ReserveDamageType();
         public static DamageAPI.ModdedDamageType ChaosDamageType = DamageAPI.ReserveDamageType();
@@ -98,15 +101,6 @@ namespace Demolisher
         public static PostProcessProfile TimestopPP;
         public static NetworkSoundEventDef ShieldBashSound;
         public static BodyIndex DemolisherBodyIndex;
-        public static ProcChainMask SoftnessProc
-        {
-            get
-            {
-                ProcChainMask procChainMask = new ProcChainMask();
-                procChainMask.AddModdedProc(BrynzaAPI.Assets.Overheal);
-                return procChainMask;
-            }
-        }
         public static void Init()
         {
             assetBundle = AssetBundle.LoadFromFileAsync(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Main.PInfo.Location), "assetbundles", "demolisherassets")).assetBundle;
@@ -162,6 +156,18 @@ namespace Demolisher
                     {
                         ref CharacterModel.RendererInfo rendererInfo = ref skinDefParams.rendererInfos[i];
                         if (rendererInfo.renderer.name.Contains("Devil")) rendererInfo.SetDontFadeWhenNearCamera(true);
+                        if (rendererInfo.defaultMaterial.name.Contains("Addressable"))
+                        {
+                            string key = rendererInfo.defaultMaterial.name.Replace("Addressable", "") + ".mat";
+                            while (key.Contains("%"))
+                            {
+                                key = key.Replace("%", "/");
+                            }
+                            Debug.LogWarning("Key: " + key);
+                            Material material = Addressables.LoadAssetAsync<Material>(key).WaitForCompletion();
+                            Debug.LogWarning("Mat: " + material);
+                            rendererInfo.defaultMaterial = material;
+                        }
                     }
                 }
             }
@@ -172,6 +178,7 @@ namespace Demolisher
             ChainsExplosion = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Effects/DemolisherChainsExplosion.prefab").RegisterEffect();
             ParryEffect = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Effects/DemolisherParry.prefab").RegisterEffect();
             Rings = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Effects/DemolisherRings.prefab").RegisterEffect();
+            Trail = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Effects/DemolisherTrailEffect.prefab").RegisterEffect();
             DemolisherTracer = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Effects/DemolisherTracer.prefab").RegisterEffect();
             GrenadeProjectile = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Projectiles/GrenadeProjectile.prefab").RegisterProjectile();
             StickyProjectile = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Projectiles/StickyProjectile.prefab").RegisterProjectile();
@@ -181,6 +188,7 @@ namespace Demolisher
             LemurianFireBallGhost = Addressables.LoadAssetAsync<GameObject>("RoR2/Base/Lemurian/FireballGhost.prefab").WaitForCompletion();
             MediumMelee = assetBundle.LoadAsset<SteppedSkillDef>("Assets/Demolisher/SkillDefs/MeleePrimary/DemolisherMediumMelee.asset").RegisterSkillDef();
             ShieldBash = assetBundle.LoadAsset<SkillDef>("Assets/Demolisher/SkillDefs/MeleeUtility/DemolisherShieldBash.asset").RegisterSkillDef();
+            ChainDash = assetBundle.LoadAsset<SkillDef>("Assets/Demolisher/SkillDefs/MeleeUtility/DemolisherChainDash.asset").RegisterSkillDef();
             Sharpness = assetBundle.LoadAsset<DemolisherWeaponSkillDef>("Assets/Demolisher/SkillDefs/MeleeWeapon/DemolisherSharpness.asset").RegisterSkillDef();
             Softness = assetBundle.LoadAsset<DemolisherWeaponSkillDef>("Assets/Demolisher/SkillDefs/MeleeWeapon/DemolisherSoftness.asset").RegisterSkillDef();
             Chaos = assetBundle.LoadAsset<DemolisherWeaponSkillDef>("Assets/Demolisher/SkillDefs/MeleeWeapon/DemolisherChaos.asset").RegisterSkillDef();
@@ -213,6 +221,7 @@ namespace Demolisher
             SharpnessCooldown = assetBundle.LoadAsset<BuffDef>("Assets/Demolisher/Buffs/SharpnessCooldown.asset").RegisterBuffDef();
             ChaosCooldown = assetBundle.LoadAsset<BuffDef>("Assets/Demolisher/Buffs/ChaosCooldown.asset").RegisterBuffDef();
             BombHit = assetBundle.LoadAsset<BuffDef>("Assets/Demolisher/Buffs/BombHit.asset").RegisterBuffDef();
+            InstantMeleeSwing = assetBundle.LoadAsset<BuffDef>("Assets/Demolisher/Buffs/InstantMeleeSwing.asset").RegisterBuffDef();
             Default = assetBundle.LoadAsset<SkinDef>("Assets/Demolisher/Character/DemolisherDefault.asset");
             Nuclear = assetBundle.LoadAsset<SkinDef>("Assets/Demolisher/Character/DemolisherNuclear.asset");
             TimestopPP = assetBundle2.LoadAsset<PostProcessProfile>("Assets/Demolisher/DemolisherTimestopPP.asset");

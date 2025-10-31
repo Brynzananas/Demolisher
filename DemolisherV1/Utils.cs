@@ -169,8 +169,18 @@ namespace Demolisher
             skillDef.SetBonusStockMultiplier(bonusStockMultiplier);
             return skillDef;
         }
-        public static void Overheal(this HealthComponent healthComponent, float amount) => healthComponent.Heal(amount, Assets.SoftnessProc);
-        public static void OverhealFraction(this HealthComponent healthComponent, float percentage) => healthComponent.HealFraction(percentage, Assets.SoftnessProc);
+        public static void Overheal(this HealthComponent healthComponent, float amount)
+        {
+            healthComponent.itemCounts.barrierOnOverHeal++;
+            healthComponent.Heal(amount, default);
+            healthComponent.itemCounts.barrierOnOverHeal--;
+        }
+        public static void OverhealFraction(this HealthComponent healthComponent, float percentage)
+        {
+            healthComponent.itemCounts.barrierOnOverHeal++;
+            healthComponent.HealFraction(percentage, default);
+            healthComponent.itemCounts.barrierOnOverHeal--;
+        }
         public static InputBankTest.ButtonState GetButtonStateFromId(this InputBankTest inputBankTest, int id) => Utils.GetButtonStateFromId(inputBankTest, id);
     }
 }

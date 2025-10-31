@@ -1275,6 +1275,52 @@ namespace Demolisher
             }
         }
     }
+    public class ObjectScaleCurveEffectScale : MonoBehaviour
+    {
+        public EffectComponent effectComponent;
+        public ObjectScaleCurve objectScaleCurve;
+        public void Update()
+        {
+            if (!effectComponent || effectComponent.effectData == null) return;
+            float time = effectComponent.effectData.genericFloat;
+            objectScaleCurve.timeMax = time;
+        }
+    }
+    public class ScaleTrailWidthWithLossyScale : MonoBehaviour
+    {
+        public TrailRenderer trailRenderer;
+        public void Update()
+        {
+            float scale = (transform.lossyScale.x + transform.lossyScale.y + transform.lossyScale.z) / 3f;
+            trailRenderer.widthMultiplier = scale;
+        }
+    }
+    public class DestroyOnLessThanScale : MonoBehaviour
+    {
+        private void Start()
+        {
+            if (!this.efh)
+            {
+                this.efh = base.GetComponent<EffectManagerHelper>();
+            }
+        }
+        private void FixedUpdate()
+        {
+            float scale = ( lossy ? (transform.lossyScale.x + transform.lossyScale.y + transform.lossyScale.z) : (transform.localScale.x + transform.localScale.y + transform.localScale.z)) / 3f;
+            if (scale <= this.scale)
+            {
+                if (this.efh && this.efh.OwningPool != null)
+                {
+                    this.efh.OwningPool.ReturnObject(this.efh);
+                    return;
+                }
+                global::UnityEngine.Object.Destroy(base.gameObject);
+            }
+        }
+        public float scale;
+        public bool lossy;
+        private EffectManagerHelper efh;
+    }
     public abstract class DemolisherWeaponDef : ScriptableObject
     {
         public delegate void ModificationDelegate(object source, ref object attack);
