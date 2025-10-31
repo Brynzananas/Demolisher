@@ -1044,6 +1044,11 @@ namespace Demolisher
             }
         }
     }
+    public class DemolisherModelLocator : ModelLocator
+    {
+        public int overrideTargetNormalCount;
+        public Vector3 overrideTargetNormal;
+    }
     public class DemolisherElevatorController : NetworkBehaviour, ICameraStateProvider
     {
         public EntityStateMachine stateMachine { get; private set; }

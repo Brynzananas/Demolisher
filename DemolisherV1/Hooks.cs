@@ -37,7 +37,19 @@ namespace Demolisher
             On.RoR2.GlobalEventManager.IsImmuneToFallDamage += GlobalEventManager_IsImmuneToFallDamage;
             RoR2Application.onLoadFinished += OnRoR2Loaded;
             On.RoR2.UI.CharacterSelectController.OnEnable += CharacterSelectController_OnEnable;
-            On.RoR2.UI.CharacterSelectController.OnDisable += CharacterSelectController_OnDisable; ;
+            On.RoR2.UI.CharacterSelectController.OnDisable += CharacterSelectController_OnDisable;
+            On.RoR2.ModelLocator.UpdateTargetNormal += ModelLocator_UpdateTargetNormal;
+        }
+
+        private static void ModelLocator_UpdateTargetNormal(On.RoR2.ModelLocator.orig_UpdateTargetNormal orig, ModelLocator self)
+        {
+            DemolisherModelLocator demolisherModelLocator = self as DemolisherModelLocator;
+            if (demolisherModelLocator && demolisherModelLocator.overrideTargetNormalCount > 0)
+            {
+                self.targetNormal = demolisherModelLocator.overrideTargetNormal;
+                return;
+            }
+            orig(self);
         }
 
         private static void CharacterSelectController_OnDisable(On.RoR2.UI.CharacterSelectController.orig_OnDisable orig, CharacterSelectController self)

@@ -18,7 +18,9 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.Networking;
 using UnityEngine.UIElements.StyleSheets;
+using static Rewired.ComponentControls.Effects.RotateAroundAxis;
 using static RoR2.BodyAnimatorSmoothingParameters;
+using static RoR2.CameraRigController;
 using static UnityEngine.ParticleSystem.PlaybackState;
 using static UnityEngine.SendMouseEvents;
 
@@ -113,6 +115,8 @@ namespace Demolisher
     public class DemolisherBaseState : BaseSkillState
     {
         public DemolisherComponent demolisherComponent;
+        public DemolisherModelLocator demolisherModelLocator;
+        public DemolisherModel demolisherModel;
         public DemolisherBulletAttackWeaponDef currentMeleeWeaponDef;
         public DemolisherProjectileWeaponDef currentRangedWeaponDef;
         public GenericSkill meleeSkill;
@@ -130,6 +134,11 @@ namespace Demolisher
         {
             base.OnEnter();
             demolisherComponent = gameObject.GetComponent<DemolisherComponent>();
+            demolisherModelLocator = characterBody.modelLocator ? characterBody.modelLocator as DemolisherModelLocator : null;
+            if (characterBody.modelLocator && characterBody.modelLocator.modelTransform)
+            {
+                demolisherModel = characterBody.modelLocator.modelTransform.GetComponent<DemolisherModel>();
+            }
             AssignWeapons();
         }
         public virtual void AssignWeapons()
@@ -579,7 +588,6 @@ namespace Demolisher
         private SphereCollider sphereCollider;
         private List<HitTarget> hitTargets = [];
         private AimAnimator aimAnimator;
-
         public override DamageSource damageSource => GetDamageSource();
 
         public virtual void SetValues()
@@ -695,6 +703,7 @@ namespace Demolisher
             if (modelAnimator)
             {
                 aimAnimator = modelAnimator.GetComponent<AimAnimator>();
+                modelAnimator.SetBool("isCharging", true);
                 //characterAnimParamAvailability = CharacterAnimParamAvailability.FromAnimator(modelAnimator);
                 //int layerIndex = this.modelAnimator.GetLayerIndex("Body");
                 //modelAnimator.CrossFadeInFixedTime("Sprint", 0.1f, layerIndex);
@@ -706,7 +715,6 @@ namespace Demolisher
                 modelAnimator.SetBool(AnimationParameters.isSprinting, true);
                 modelAnimator.SetFloat(AnimationParameters.turnAngle, 0f);
             }
-            PlayAnimation("Gesture, Override", "ShieldChargeStart");
         }
         public override void Update()
         {
@@ -716,7 +724,7 @@ namespace Demolisher
             directionVisual.Normalize();
             if (modelAnimator)
             {
-                modelAnimator.SetBool(AnimationParameters.isGrounded, isGrounded);
+                //modelAnimator.SetBool(AnimationParameters.isGrounded, isGrounded);
                 modelAnimator.SetFloat(AnimationParameters.walkSpeed, characterBody.moveSpeed);
             }
             if (characterDirection)
@@ -728,7 +736,10 @@ namespace Demolisher
         public override void OnExit()
         {
             base.OnExit();
-            PlayAnimation("Gesture, Override", "ShieldChargeEnd");
+            if (modelAnimator)
+            {
+                modelAnimator.SetBool("isCharging", false);
+            }
             if (characterMotor)
             {
                 float walkSpeed = characterMotor.walkSpeed;
@@ -1536,7 +1547,7 @@ namespace Demolisher
                 outer.SetStateToMain();
         }
     }
-    public class ChainDash : BaseSkillState
+    public class ChainDash : DemolisherBaseState
     {
         public static float baseStartWindow = 0.2f;
         public static float baseEndWindow = 0.4f;
@@ -1547,25 +1558,19 @@ namespace Demolisher
         public float effectDuration;
         public float startWindow;
         public float endWindow;
-        private bool effectApplied;
-        private float stopwatch;
-        private bool keyDown;
-        private bool wasKeyDown;
-        private Vector3 moveVector;
-        private Vector3 moveVectorVelocity;
-        private Animator modelAnimator;
-        private int chainCount;
-        private BodyAnimatorSmoothingParameters.SmoothingParameters smoothingParameters;
-        private DemolisherModel demolisherModel;
+        public bool effectApplied;
+        public float stopwatch;
+        public bool keyDown;
+        public bool wasKeyDown;
+        public Vector3 moveVector;
+        public Vector3 moveVectorVelocity;
+        public Animator modelAnimator;
+        public int chainCount;
+        public BodyAnimatorSmoothingParameters.SmoothingParameters smoothingParameters;
         private bool keyPressed => keyDown && !wasKeyDown;
         public override void OnEnter()
         {
             base.OnEnter();
-            Transform modelTransform = GetModelTransform();
-            if (modelTransform)
-            {
-                demolisherModel = modelTransform.GetComponent<DemolisherModel>();
-            }
             GetBodyAnimatorSmoothingParameters(out smoothingParameters);
             SetValues();
             wasKeyDown = true;
@@ -1695,6 +1700,167 @@ namespace Demolisher
 			if (!buttonState.down && skillSlot.skillDef) return;
 			if (skillSlot.mustKeyPress && buttonState.hasPressBeenClaimed) return;
 			if (skillSlot.ExecuteIfReady()) buttonState.hasPressBeenClaimed = true;
+        }
+    }
+    public class Fly : DemolisherBaseState, ICameraStateProvider
+    {
+        public static float baseFlyVectorSmoothTime = 0.2f;
+        public static float baseFlyVectorVisualSmoothTime = 0.2f;
+        public static float baseSpeedMultiplier = 5f;
+        public static float baseSpeedSmoothTime = 1f;
+        public static float setCameraSmoothTime = 0.2f;
+        public static float unsetCameraSmoothTime = 0.2f;
+        public Vector3 flyVector;
+        public Vector3 flyVectorVisual;
+        public Vector3 flyVectorVelocity;
+        public Vector3 flyVectorVisualVelocity;
+        //public float flyVectorSmoothTime;
+        //public float flyVectorVisualSmoothTime;
+        public float maxSpeed;
+        public float speed;
+        public float speedVelocity;
+        public Animator animator;
+        public bool effectApplied;
+        public Transform cameraTransform;
+        public override void OnEnter()
+        {
+            base.OnEnter();
+            if (!characterMotor)
+            {
+                outer.SetNextStateToMain();
+                return;
+            }
+            animator = GetModelAnimator();
+            if (animator)
+            {
+                animator.SetBool("isFlying", true);
+            }
+            SetValues();
+            effectApplied = true;
+            Transform modelTransform = GetModelTransform();
+            if (modelTransform)
+            {
+                ChildLocator childLocator = modelTransform.GetComponent<ChildLocator>();
+                cameraTransform = childLocator.FindChild("Base");
+            }
+            if (cameraTransform == null) cameraTransform = characterBody.coreTransform;
+            if (demolisherModelLocator)
+            {
+                demolisherModelLocator.overrideTargetNormalCount++;
+                demolisherModelLocator.overrideTargetNormal = flyVectorVisual;
+            }
+            if (demolisherModel)
+            {
+                demolisherModel.devilCount++;
+            }
+            if (isAuthority)
+            {
+                characterMotor.onMovementHit += CharacterMotor_onMovementHit;
+                //foreach (CameraRigController cameraRigController in CameraRigController.readOnlyInstancesList)
+                //{
+                //    cameraRigController.SetOverrideCam(this, setCameraSmoothTime);
+                //}
+            }
+        }
+
+        private void CharacterMotor_onMovementHit(ref CharacterMotor.MovementHitInfo movementHitInfo)
+        {
+            if (!isAuthority) return;
+            outer.SetNextStateToMain();
+            float magnitude = characterMotor.velocity.magnitude;
+            BlastAttack blastAttack = new BlastAttack
+            {
+                attacker = characterBody.gameObject,
+                attackerFiltering = AttackerFiltering.Default,
+                baseDamage = characterBody.damage * Hooks.stompBaseDamageCoefficient + characterBody.damage * Hooks.stompVelocityDamageCoefficient * magnitude,
+                baseForce = Hooks.stompForce,
+                crit = characterBody.RollCrit(),
+                damageColorIndex = DamageColorIndex.Default,
+                falloffModel = Hooks.stompFalloff,
+                inflictor = characterBody.gameObject,
+                position = characterBody.corePosition,
+                damageType = new DamageTypeCombo(DamageType.Stun1s, DamageTypeExtended.Generic, GetDamageSource()),
+                procCoefficient = Hooks.stompProcCoefficient,
+                radius = Hooks.stompBaseRadius + magnitude * Hooks.stompVelocityRadiusMultiplier,
+                teamIndex = characterBody.teamComponent ? characterBody.teamComponent.teamIndex : TeamIndex.Neutral,
+            };
+            blastAttack.Fire();
+            EffectData effectData = new()
+            {
+                origin = blastAttack.position,
+                scale = blastAttack.radius,
+            };
+            EffectManager.SpawnEffect(Assets.Explosion.prefab, effectData, true);
+        }
+
+        public void SetValues()
+        {
+            flyVector = Vector3.up;
+            flyVectorVisual = flyVector;
+            maxSpeed = baseSpeedMultiplier;
+        }
+        public override void FixedUpdate()
+        {
+            base.FixedUpdate();
+            Ray ray = GetAimRay();
+            if (!isAuthority) return;
+            if (speed < maxSpeed) speed = Mathf.SmoothDamp(speed, maxSpeed, ref speedVelocity, baseSpeedSmoothTime / characterBody.attackSpeed, float.MaxValue, Time.fixedDeltaTime);
+            flyVector = Vector3.SmoothDamp(flyVector, ray.direction, ref flyVectorVelocity, baseFlyVectorSmoothTime / characterBody.attackSpeed, float.MaxValue, Time.fixedDeltaTime);
+            characterMotor.SetVelocityOverride(flyVector * speed * characterBody.baseMoveSpeed);
+
+        }
+        public override void Update()
+        {
+            base.Update();
+            if (demolisherModelLocator)
+            {
+                Ray ray = GetAimRay();
+                flyVectorVisual = Vector3.SmoothDamp(flyVectorVisual, ray.direction, ref flyVectorVisualVelocity, baseFlyVectorVisualSmoothTime / characterBody.attackSpeed, float.MaxValue, Time.deltaTime);
+                demolisherModelLocator.overrideTargetNormal = flyVectorVisual;
+            }
+        }
+        public override void OnExit()
+        {
+            base.OnExit();
+            if (effectApplied && demolisherModel)
+            {
+                demolisherModel.devilCount--;
+            }
+            if (animator)
+            {
+                animator.SetBool("isFlying", false);
+            }
+            if (effectApplied && demolisherModelLocator) demolisherModelLocator.overrideTargetNormalCount--;
+            if (isAuthority)
+            {
+                //foreach (CameraRigController cameraRigController in CameraRigController.readOnlyInstancesList)
+                //{
+                //    cameraRigController.SetOverrideCam(null, unsetCameraSmoothTime);
+                //}
+                if (characterMotor)
+                {
+                    characterMotor.onMovementHit -= CharacterMotor_onMovementHit;
+                    characterMotor.SetVelocityOverride(Vector3.zero);
+                    characterMotor.velocity = Vector3.zero;
+                }
+            }
+
+        }
+        public void GetCameraState(CameraRigController cameraRigController, ref CameraState cameraState)
+        {
+            cameraState.position = characterBody.corePosition;
+        }
+        public bool IsUserLookAllowed(CameraRigController cameraRigController)
+        {
+            return true;
+        }
+        public bool IsUserControlAllowed(CameraRigController cameraRigController)
+        {
+            return true;
+        }
+        public bool IsHudAllowed(CameraRigController cameraRigController)
+        {
+            return true;
         }
     }
     public abstract class DemolisherElevatorBaseState : EntityState

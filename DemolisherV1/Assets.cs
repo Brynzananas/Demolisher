@@ -73,6 +73,7 @@ namespace Demolisher
         public static SkillDef Whirlwind;
         public static SkillDef Slicing;
         public static SkillDef Collapse;
+        public static SkillDef Fly;
         public static SkillFamily Passive;
         public static SkillFamily MeleeWeapon;
         public static SkillFamily MeleePrimary;
@@ -207,6 +208,7 @@ namespace Demolisher
             Whirlwind = assetBundle.LoadAsset<SkillDef>("Assets/Demolisher/SkillDefs/MeleeSpecial/DemolisherWhirlwind.asset").RegisterSkillDef();
             Slicing = assetBundle.LoadAsset<SkillDef>("Assets/Demolisher/SkillDefs/MeleeSpecial/DemolisherSlicing.asset").RegisterSkillDef();
             Collapse = assetBundle.LoadAsset<SkillDef>("Assets/Demolisher/SkillDefs/RangedSpecial/DemolisherCollapse.asset").RegisterSkillDef();
+            Fly = assetBundle.LoadAsset<SkillDef>("Assets/Demolisher/SkillDefs/RangedSpecial/DemolisherFly.asset").RegisterSkillDef();
             Passive = assetBundle.LoadAsset<SkillFamily>("Assets/Demolisher/SkillFamilies/DemolisherPassive.asset").RegisterSkillFamily();
             MeleeWeapon = assetBundle.LoadAsset<SkillFamily>("Assets/Demolisher/SkillFamilies/DemolisherMeleeWeapon.asset").RegisterSkillFamily();
             MeleePrimary = assetBundle.LoadAsset<SkillFamily>("Assets/Demolisher/SkillFamilies/DemolisherMeleePrimary.asset").RegisterSkillFamily();
