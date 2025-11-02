@@ -537,7 +537,7 @@ namespace Demolisher
             forward.Normalize();
             swordPillarTransform.rotation = Util.QuaternionSafeLookRotation(forward, bulletAttack.aimVector);
             float radius = bulletAttack.radius;
-            swordPillarTransform.localScale = new Vector3(radius, radius, bulletAttack.maxDistance);
+            swordPillarTransform.localScale = new Vector3(radius, bulletAttack.maxDistance, radius);
         }
         public void OnDisable()
         {
@@ -1041,7 +1041,6 @@ namespace Demolisher
                     devilCountApplied = true;
                     foreach (GameObject devilObject in devilObjects) devilObject.SetActive(true);
                     foreach (GameObject nonDevilObject in nonDevilObjects) nonDevilObject.SetActive(false);
-                    foreach (ParticleSystem particleSystem in devilParticles) particleSystem.Play(true);
                     if (devilMaterial)
                     {
                         if (temporaryOverlay) Destroy(temporaryOverlay);
@@ -1058,8 +1057,29 @@ namespace Demolisher
                     devilCountApplied = false;
                     foreach (GameObject devilObject in devilObjects) devilObject.SetActive(false);
                     foreach (GameObject nonDevilObject in nonDevilObjects) nonDevilObject.SetActive(true);
-                    foreach (ParticleSystem particleSystem in devilParticles) particleSystem.Stop(true, ParticleSystemStopBehavior.StopEmitting);
                     if (temporaryOverlay) Destroy(temporaryOverlay);
+                }
+            }
+        }
+        private int _trailCount;
+        private bool trailCountApplied;
+        public int trailCount
+        {
+            get => _trailCount;
+            set
+            {
+                _devilCount = value;
+                if (value > 0)
+                {
+                    if (trailCountApplied) return;
+                    trailCountApplied = true;
+                    foreach (ParticleSystem particleSystem in devilParticles) particleSystem.Play(true);
+                }
+                else
+                {
+                    if (!trailCountApplied) return;
+                    trailCountApplied = false;
+                    foreach (ParticleSystem particleSystem in devilParticles) particleSystem.Stop(true, ParticleSystemStopBehavior.StopEmitting);
                 }
             }
         }
@@ -1344,6 +1364,22 @@ namespace Demolisher
             {
                 DestroyOnTimer destroyOnTimer = redAsFuck.GetComponent<DestroyOnTimer>();
                 if (destroyOnTimer) destroyOnTimer.enabled = true;
+            }
+        }
+        public void OnDestroy()
+        {
+            if (redAsFuck)
+            {
+                Destroy(redAsFuck);
+            }
+            if (pillar)
+            {
+                Destroy(pillar);
+            }
+            foreach (CanvasGroup canvasGroup in Hooks.canvasGroups)
+            {
+                if (!canvasGroup) continue;
+                canvasGroup.alpha = 1f;
             }
         }
     }

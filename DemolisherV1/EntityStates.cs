@@ -814,6 +814,12 @@ namespace Demolisher
             {
                 UpdateBulletAttack(characterBody.damage * damageCoefficient, procCoefficient, force, RollCrit(), radius, maxDistance, true);
                 stopwatch = 0f;
+                if (isAuthority && (activatorSkillSlot ? activatorSkillSlot.stock <= 0 : fixedAge >= duration) || !IsKeyDownAuthority())
+                {
+                    outer.SetNextStateToMain();
+                    return;
+                }
+                if (activatorSkillSlot) activatorSkillSlot.stock--;
             }
             if (animator) animator.SetBool("isSpinning", true);
             direction = Vector3.RotateTowards(direction, aimDirectionGrounded, degreesPerSecond / 57f * Time.fixedDeltaTime, 0f);
@@ -830,7 +836,6 @@ namespace Demolisher
             {
                 rigidbody.velocity += direction * characterBody.moveSpeed;
             }
-            if (fixedAge >= duration && isAuthority) outer.SetNextStateToMain();
         }
         public virtual void SetValues()
         {
@@ -1616,7 +1621,7 @@ namespace Demolisher
         public Vector3 moveVector;
         public Vector3 moveVectorVelocity;
         public Animator modelAnimator;
-        public int chainCount;
+        //public int chainCount;
         public BodyAnimatorSmoothingParameters.SmoothingParameters smoothingParameters;
         private bool keyPressed => keyDown && !wasKeyDown;
         public override void OnEnter()
@@ -1662,7 +1667,7 @@ namespace Demolisher
             {
                 if (stopwatch >= startWindow && stopwatch <= endWindow)
                 {
-                    SetValues();
+                    outer.SetNextState(new ChainDash { activatorSkillSlot = activatorSkillSlot });
                 }
                 else
                 {
@@ -1675,7 +1680,6 @@ namespace Demolisher
         public override void OnExit()
         {
             base.OnExit();
-            if (activatorSkillSlot) activatorSkillSlot.stock--;
             if (modelAnimator)
             {
                 modelAnimator.SetBool("isStep", false);
@@ -1691,7 +1695,7 @@ namespace Demolisher
         }
         public virtual void SetValues()
         {
-            chainCount++;
+            //chainCount++;
             Ray ray = GetAimRay();
             Vector3 aimDirection = ray.direction;
             aimDirection.y = 0f;
@@ -1721,7 +1725,7 @@ namespace Demolisher
             if (modelAnimator)
             {
                 CharacterAnimatorWalkParamCalculator characterAnimatorWalkParamCalculator = new CharacterAnimatorWalkParamCalculator();
-                characterAnimatorWalkParamCalculator.Update(moveVector.normalized, aimDirection, smoothingParameters, stopwatch);
+                characterAnimatorWalkParamCalculator.Update(moveVector.normalized, ray.direction, smoothingParameters, stopwatch);
                 modelAnimator.SetFloat(AnimationParameters.forwardSpeed, characterAnimatorWalkParamCalculator.animatorWalkSpeed.x);
                 modelAnimator.SetFloat(AnimationParameters.rightSpeed, characterAnimatorWalkParamCalculator.animatorWalkSpeed.y);
                 modelAnimator.SetFloat(AnimationParameters.upSpeed, 0f);
@@ -1731,7 +1735,7 @@ namespace Demolisher
                 modelAnimator.SetBool(AnimationParameters.isGrounded, true);
                 modelAnimator.SetBool("isStep", true);
                 modelAnimator.SetBool(AnimationParameters.isSprinting, false);
-                modelAnimator.SetFloat(AnimationParameters.turnAngle, 0f);
+                modelAnimator.SetFloat(AnimationParameters.turnAngle, characterAnimatorWalkParamCalculator.remainingTurnAngle);
             }
             if (NetworkServer.active)
             {
@@ -1763,7 +1767,7 @@ namespace Demolisher
         public static float setCameraSmoothTime = 0.2f;
         public static float unsetCameraSmoothTime = 0.2f;
         public static int cameraOverridePriority = 6;
-        public static float baseShake = 0f;
+        public static float baseShake = 0.2f;
         public float shake;
         public Vector3 flyVector;
         public Vector3 flyVectorVisual;
@@ -1791,7 +1795,7 @@ namespace Demolisher
             animator = GetModelAnimator();
             if (animator)
             {
-                animator.SetBool("isBalling", true);
+                animator.SetBool("isFlying", true);
             }
             SetValues();
             effectApplied = true;
@@ -1930,7 +1934,7 @@ namespace Demolisher
             }
             if (animator)
             {
-                animator.SetBool("isBalling", false);
+                animator.SetBool("isFlying", false);
             }
             if (effectApplied && demolisherModelLocator) demolisherModelLocator.overrideTargetNormalCount--;
             if (isAuthority)
@@ -2000,6 +2004,7 @@ namespace Demolisher
         public override void OnEnter()
         {
             base.OnEnter();
+            PlayAnimation("Gesture, Override", "BufferEmpty");
             StartAimMode(2f, true);
             shakeAddition = baseShakeAddition;
             if (demolisherModel)
@@ -2031,8 +2036,10 @@ namespace Demolisher
             {
                 stopwatch = 0f;
                 UpdateBulletAttack(characterBody.damage * damageCoefficient, procCoefficient, force, crit, radius, range, true);
+                if (activatorSkillSlot) activatorSkillSlot.stock--;
             }
-            if (isAuthority && fixedAge >= baseDuration) outer.SetNextStateToMain();
+            if (!isAuthority) return;
+            if ((activatorSkillSlot ? activatorSkillSlot.stock <= 0 : fixedAge >= baseDuration) || !IsKeyDownAuthority()) outer.SetNextStateToMain();
         }
         public override void Update()
         {
