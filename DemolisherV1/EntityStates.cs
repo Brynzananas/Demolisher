@@ -803,16 +803,19 @@ namespace Demolisher
         public float stopwatch;
         public Vector3 direction;
         public Vector3 rotation;
+        public Animator animator;
         public override void FixedUpdate()
         {
             base.FixedUpdate();
             ContinueFireMeleeAttack(new Ray { direction = rotation, origin = characterBody.corePosition });
+            animator = GetModelAnimator();
             stopwatch += Time.fixedDeltaTime;
             if (stopwatch >= interval)
             {
                 UpdateBulletAttack(characterBody.damage * damageCoefficient, procCoefficient, force, RollCrit(), radius, maxDistance, true);
                 stopwatch = 0f;
             }
+            if (animator) animator.SetBool("isSpinning", true);
             direction = Vector3.RotateTowards(direction, aimDirectionGrounded, degreesPerSecond / 57f * Time.fixedDeltaTime, 0f);
             rotation = Quaternion.AngleAxis(rotationsPerSecond * 360f * Time.fixedDeltaTime, Vector3.up) * rotation;
             if (characterDirection)
@@ -841,7 +844,6 @@ namespace Demolisher
             base.OnEnter();
             direction = aimDirectionGrounded;
             rotation = direction;
-            PlayCrossfade("FullBody, Override", "Spin", "Slash.playbackRate", spinDuration, spinEnterCrossfade);
             Util.PlaySound("Play_DemoWhirlwind", gameObject);
             SetValues();
             CreateBulletAttack();
@@ -850,8 +852,8 @@ namespace Demolisher
         public override void OnExit()
         {
             base.OnExit();
-            PlayAnimation("FullBody, Override", "SpinEnd");
             Util.PlaySound("Stop_DemoWhirlwind", gameObject);
+            if (animator) animator.SetBool("isSpinning", false);
         }
         public override InterruptPriority GetMinimumInterruptPriority()
         {
@@ -1021,7 +1023,7 @@ namespace Demolisher
             }
         }
     }
-    public class FireCollapse : BaseState
+    public class FireCollapse : DemolisherBaseState
     {
         public static float bulletDamageCoefficient = 100f;
         public static float bulletProcCoefficient = 1f;
@@ -1032,7 +1034,9 @@ namespace Demolisher
         public static float bulletRadius = 1f;
         public static float explosionRadius = 24f;
         public static float fireANimationDuration = 0.5f;
-
+        public static float crossfade = 0.05f;
+        public static float selfForce = 24f;
+        public static float groundedForceReduction = 3f;
         public override void OnEnter()
         {
             base.OnEnter();
@@ -1040,7 +1044,8 @@ namespace Demolisher
         }
         public void Fire()
         {
-            PlayAnimation("Gesture, Override", "CollapseFire", "Slash.playbackRate", fireANimationDuration / attackSpeedStat);
+            StartAimMode(2f, true);
+            PlayCrossfade("Gesture, Override", "FireChest", "Slash.playbackRate", fireANimationDuration / attackSpeedStat, crossfade);
             Util.PlaySound("Play_tacky_grenadier_shoot_crit", gameObject);
             ChildLocator childLocator = modelLocator && modelLocator.modelTransform ? modelLocator.modelTransform.GetComponent<ChildLocator>() : null;
             if (childLocator)
@@ -1059,7 +1064,7 @@ namespace Demolisher
                     cheapMultiBullet = false,
                     damage = characterBody.damage * bulletDamageCoefficient,
                     damageColorIndex = DamageColorIndex.Default,
-                    damageType = new DamageTypeCombo(DamageType.Generic, DamageTypeExtended.Generic, DamageSource.Special),
+                    damageType = new DamageTypeCombo(DamageType.Generic, DamageTypeExtended.Generic, GetDamageSource()),
                     falloffModel = BulletAttack.FalloffModel.None,
                     force = bulletForce,
                     isCrit = RollCrit(),
@@ -1079,10 +1084,25 @@ namespace Demolisher
                     spreadPitchScale = 0f,
                     hitCallback = FireExplosion,
                     tracerEffectPrefab = Assets.DemolisherTracer.prefab,
-                    muzzleName = "PowerL"
+                    muzzleName = "UpperChest"
                 };
                 bulletAttack.Fire();
-                outer.SetNextStateToMain();
+                if (characterMotor)
+                {
+                    PhysForceInfo physForceInfo = new PhysForceInfo
+                    {
+                        massIsOne = true,
+                        ignoreGroundStick = true,
+                        disableAirControlUntilCollision = false,
+                        force = ray.direction * selfForce * -1f / (characterMotor.isGrounded ? groundedForceReduction : 1f)
+                    };
+                    characterMotor.ApplyForceImpulse(physForceInfo);
+                }
+                else if (rigidbody)
+                {
+                    rigidbody.AddForce(ray.direction * selfForce * -1f, ForceMode.VelocityChange);
+                }
+                    outer.SetNextStateToMain();
             }
         }
 
@@ -1322,6 +1342,9 @@ namespace Demolisher
         public BaseAI[] baseAIs;
         public BulletAttack bulletAttack;
         public GameObject cracksTrail;
+        public Animator animator;
+        public bool alreadyUpdate;
+        public AnimatorUpdateMode animatorUpdateMode;
         public virtual void SetValues()
         {
             timeDivisionMultiplier = baseTimeDivisionMultiplier * characterBody.attackSpeed;
@@ -1331,7 +1354,22 @@ namespace Demolisher
         {
             base.OnEnter();
             SetValues();
-            cracksTrail = GameObject.Instantiate(Assets.CracksTrailEffect, characterBody.coreTransform);
+            animator = GetModelAnimator();
+            if (animator)
+            {
+                animator.SetBool("isSlicing", true);
+                alreadyUpdate = animator.updateMode == AnimatorUpdateMode.UnscaledTime;
+                if (!alreadyUpdate)
+                {
+                    animatorUpdateMode = animator.updateMode;
+                    animator.updateMode = AnimatorUpdateMode.UnscaledTime;
+                }
+            }
+            if (demolisherModel)
+            {
+                demolisherModel.devilCount++;
+            }
+            //cracksTrail = GameObject.Instantiate(Assets.CracksTrailEffect, characterBody.coreTransform);
             if (isAuthority)
             {
                 BrynzaAPI.Utils.ChangeTimescaleForAllClients(Time.timeScale / timeDivisionMultiplier);
@@ -1348,6 +1386,18 @@ namespace Demolisher
         public override void OnExit()
         {
             base.OnExit();
+            if (demolisherModel)
+            {
+                demolisherModel.devilCount--;
+            }
+            if (animator)
+            {
+                animator.SetBool("isSlicing", false);
+                if (!alreadyUpdate)
+                {
+                    animator.updateMode = animatorUpdateMode;
+                }
+            }
             if (isAuthority)
             {
                 BrynzaAPI.Utils.ChangeTimescaleForAllClients(Time.timeScale * timeDivisionMultiplier);
@@ -1399,6 +1449,7 @@ namespace Demolisher
                 spreadPitchScale = 0f,
                 stopperMask = LayerIndex.world.mask,
                 hitMask = LayerIndex.entityPrecise.mask,
+                tracerEffectPrefab = Assets.DemolisherTracer.prefab
                 //tracerEffectPrefab = Assets.DemolisherTracer.prefab
             };
             object attack = bulletAttack;
@@ -1706,10 +1757,14 @@ namespace Demolisher
     {
         public static float baseFlyVectorSmoothTime = 0.2f;
         public static float baseFlyVectorVisualSmoothTime = 0.2f;
-        public static float baseSpeedMultiplier = 5f;
+        public static float baseSpeedMultiplier = 0.5f;
         public static float baseSpeedSmoothTime = 1f;
+        public static float minFixedAge = 1f;
         public static float setCameraSmoothTime = 0.2f;
         public static float unsetCameraSmoothTime = 0.2f;
+        public static int cameraOverridePriority = 6;
+        public static float baseShake = 0f;
+        public float shake;
         public Vector3 flyVector;
         public Vector3 flyVectorVisual;
         public Vector3 flyVectorVelocity;
@@ -1722,6 +1777,9 @@ namespace Demolisher
         public Animator animator;
         public bool effectApplied;
         public Transform cameraTransform;
+        public CameraTargetParams.CameraParamsOverrideHandle cameraParamsOverrideHandle;
+        public Vector3 picotPosition;
+        public float fixedAgeAddition;
         public override void OnEnter()
         {
             base.OnEnter();
@@ -1733,17 +1791,10 @@ namespace Demolisher
             animator = GetModelAnimator();
             if (animator)
             {
-                animator.SetBool("isFlying", true);
+                animator.SetBool("isBalling", true);
             }
             SetValues();
             effectApplied = true;
-            Transform modelTransform = GetModelTransform();
-            if (modelTransform)
-            {
-                ChildLocator childLocator = modelTransform.GetComponent<ChildLocator>();
-                cameraTransform = childLocator.FindChild("Base");
-            }
-            if (cameraTransform == null) cameraTransform = characterBody.coreTransform;
             if (demolisherModelLocator)
             {
                 demolisherModelLocator.overrideTargetNormalCount++;
@@ -1752,9 +1803,32 @@ namespace Demolisher
             if (demolisherModel)
             {
                 demolisherModel.devilCount++;
+                demolisherModel.shakeWeight += shake;
             }
             if (isAuthority)
             {
+                if (cameraTargetParams)
+                {
+                    picotPosition = cameraTargetParams.cameraPivotTransform.localPosition;
+                    cameraTargetParams.cameraPivotTransform.localPosition = Vector3.zero;
+                    CharacterCameraParamsData characterCameraParamsData = new CharacterCameraParamsData
+                    {
+                        fov = cameraTargetParams.currentCameraParamsData.fov,
+                        isFirstPerson = cameraTargetParams.currentCameraParamsData.isFirstPerson,
+                        idealLocalCameraPos = cameraTargetParams.currentCameraParamsData.idealLocalCameraPos,
+                        maxPitch = cameraTargetParams.currentCameraParamsData.maxPitch,
+                        minPitch = cameraTargetParams.currentCameraParamsData.minPitch,
+                        overrideFirstPersonFadeDuration = cameraTargetParams.currentCameraParamsData.overrideFirstPersonFadeDuration,
+                        pivotVerticalOffset = 0f,
+                        wallCushion = cameraTargetParams.currentCameraParamsData.wallCushion
+                    };
+                    CameraTargetParams.CameraParamsOverrideRequest cameraParamsOverrideRequest = new CameraTargetParams.CameraParamsOverrideRequest
+                    {
+                        cameraParamsData = characterCameraParamsData,
+                        priority = cameraOverridePriority
+                    };
+                    cameraParamsOverrideHandle = cameraTargetParams.AddParamsOverride(cameraParamsOverrideRequest, setCameraSmoothTime);
+                }
                 characterMotor.onMovementHit += CharacterMotor_onMovementHit;
                 //foreach (CameraRigController cameraRigController in CameraRigController.readOnlyInstancesList)
                 //{
@@ -1795,18 +1869,40 @@ namespace Demolisher
 
         public void SetValues()
         {
+            shake = baseShake;
             flyVector = Vector3.up;
             flyVectorVisual = flyVector;
             maxSpeed = baseSpeedMultiplier;
+            if (!characterMotor) return;
+            float magnitude = characterMotor.velocity.magnitude;
+            if (magnitude > characterBody.moveSpeed)
+            {
+                speed = characterMotor.velocity.magnitude;
+                flyVector = characterMotor.velocity.normalized;
+                flyVectorVisual = flyVector;
+                float newSpeed = speed;
+                while (newSpeed >= 0f) // I am so bad at math :sob:
+                {
+                    newSpeed -= characterBody.moveSpeed * baseSpeedMultiplier / Mathf.Min(minFixedAge, fixedAgeAddition) * Time.fixedDeltaTime;
+                    fixedAgeAddition += Time.fixedDeltaTime;
+                }
+            }
         }
         public override void FixedUpdate()
         {
             base.FixedUpdate();
             Ray ray = GetAimRay();
             if (!isAuthority) return;
-            if (speed < maxSpeed) speed = Mathf.SmoothDamp(speed, maxSpeed, ref speedVelocity, baseSpeedSmoothTime / characterBody.attackSpeed, float.MaxValue, Time.fixedDeltaTime);
+            if (skillLocator && inputBank)
+            {
+                HandleSkill(skillLocator.primary, ref inputBank.skill1);
+                HandleSkill(skillLocator.secondary, ref inputBank.skill2);
+                HandleSkill(skillLocator.utility, ref inputBank.skill3);
+            }
+            //if (speed < maxSpeed) speed = Mathf.SmoothDamp(speed, maxSpeed, ref speedVelocity, baseSpeedSmoothTime / characterBody.attackSpeed, float.MaxValue, Time.fixedDeltaTime);
+            speed += characterBody.moveSpeed * baseSpeedMultiplier / Mathf.Min(minFixedAge, fixedAge + fixedAgeAddition) * Time.fixedDeltaTime;
             flyVector = Vector3.SmoothDamp(flyVector, ray.direction, ref flyVectorVelocity, baseFlyVectorSmoothTime / characterBody.attackSpeed, float.MaxValue, Time.fixedDeltaTime);
-            characterMotor.SetVelocityOverride(flyVector * speed * characterBody.baseMoveSpeed);
+            characterMotor.SetVelocityOverride(flyVector * speed);
 
         }
         public override void Update()
@@ -1818,6 +1914,11 @@ namespace Demolisher
                 flyVectorVisual = Vector3.SmoothDamp(flyVectorVisual, ray.direction, ref flyVectorVisualVelocity, baseFlyVectorVisualSmoothTime / characterBody.attackSpeed, float.MaxValue, Time.deltaTime);
                 demolisherModelLocator.overrideTargetNormal = flyVectorVisual;
             }
+            if (characterDirection)
+            {
+                characterDirection.forward = flyVectorVisual;
+                characterDirection.moveVector = flyVectorVisual;
+            }
         }
         public override void OnExit()
         {
@@ -1825,10 +1926,11 @@ namespace Demolisher
             if (effectApplied && demolisherModel)
             {
                 demolisherModel.devilCount--;
+                demolisherModel.shakeWeight -= shake;
             }
             if (animator)
             {
-                animator.SetBool("isFlying", false);
+                animator.SetBool("isBalling", false);
             }
             if (effectApplied && demolisherModelLocator) demolisherModelLocator.overrideTargetNormalCount--;
             if (isAuthority)
@@ -1837,6 +1939,11 @@ namespace Demolisher
                 //{
                 //    cameraRigController.SetOverrideCam(null, unsetCameraSmoothTime);
                 //}
+                if (cameraTargetParams)
+                {
+                    cameraTargetParams.RemoveParamsOverride(cameraParamsOverrideHandle, unsetCameraSmoothTime);
+                    cameraTargetParams.cameraPivotTransform.localPosition = picotPosition;
+                }
                 if (characterMotor)
                 {
                     characterMotor.onMovementHit -= CharacterMotor_onMovementHit;
@@ -1861,6 +1968,92 @@ namespace Demolisher
         public bool IsHudAllowed(CameraRigController cameraRigController)
         {
             return true;
+        }
+        public void HandleSkill (GenericSkill skillSlot, ref InputBankTest.ButtonState buttonState)
+		{
+			if (!skillSlot) return;
+			if (skillSlot.skillDef == null) return;
+			if (!buttonState.down && skillSlot.skillDef) return;
+			if (skillSlot.mustKeyPress && buttonState.hasPressBeenClaimed) return;
+			if (skillSlot.ExecuteIfReady())
+            buttonState.hasPressBeenClaimed = true;
+        }
+        public override InterruptPriority GetMinimumInterruptPriority() => InterruptPriority.Skill;
+    }
+    public class Laser : BaseMeleeAttack
+    {
+        public static float damageCoefficient = 2f;
+        public static float procCoefficient = 1f;
+        public static float force = 0f;
+        public static float range = 128f;
+        public static float radius = 3f;
+        public static float hitInterval = 0.1f;
+        public static float baseDuration = 6f;
+        public static float baseShakeAddition = 0.2f;
+        public float shakeAddition;
+        public GameObject laserEffect;
+        public float stopwatch;
+        private bool crit;
+        public Animator animator;
+        public override DamageSource damageSource => GetDamageSource();
+
+        public override void OnEnter()
+        {
+            base.OnEnter();
+            StartAimMode(2f, true);
+            shakeAddition = baseShakeAddition;
+            if (demolisherModel)
+            {
+                demolisherModel.devilCount++;
+                demolisherModel.shakeWeight += shakeAddition;
+            }
+            animator = GetModelAnimator();
+            if (animator)
+            {
+                animator.SetBool("isChestFiring", true);
+            }
+            laserEffect = GameObject.Instantiate(Assets.LaserEffect, characterBody.coreTransform);
+            if (laserEffect)
+            {
+                laserEffect.transform.localScale = new Vector3(radius, radius, range);
+            }
+            crit = RollCrit();
+            CreateBulletAttack();
+            UpdateBulletAttack(characterBody.damage * damageCoefficient, procCoefficient, force, crit, radius, range, true);
+            if (!isAuthority) return;
+        }
+        public override void FixedUpdate()
+        {
+            base.FixedUpdate();
+            ContinueFireMeleeAttack(GetAimRay());
+            stopwatch += Time.fixedDeltaTime;
+            if (stopwatch >= hitInterval)
+            {
+                stopwatch = 0f;
+                UpdateBulletAttack(characterBody.damage * damageCoefficient, procCoefficient, force, crit, radius, range, true);
+            }
+            if (isAuthority && fixedAge >= baseDuration) outer.SetNextStateToMain();
+        }
+        public override void Update()
+        {
+            base.Update();
+            StartAimMode(2f, true);
+            Ray ray = GetAimRay();
+            laserEffect.transform.rotation = Util.QuaternionSafeLookRotation(ray.direction);
+        }
+        public override void OnExit()
+        {
+            base.OnExit();
+            if (demolisherModel)
+            {
+                demolisherModel.devilCount--;
+                demolisherModel.shakeWeight -= shakeAddition;
+            }
+            if (animator)
+            {
+                animator.SetBool("isChestFiring", false);
+            }
+            if (laserEffect) Destroy(laserEffect);
         }
     }
     public abstract class DemolisherElevatorBaseState : EntityState

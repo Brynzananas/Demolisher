@@ -4,6 +4,7 @@ using HG;
 using JetBrains.Annotations;
 using R2API;
 using R2API.Networking.Interfaces;
+using Rewired;
 using RoR2;
 using RoR2.Projectile;
 using RoR2.Skills;
@@ -531,7 +532,10 @@ namespace Demolisher
             if(demolisherSwordPillarProjectile == null || swordPillarTransform == null) return;
             BulletAttack bulletAttack = demolisherSwordPillarProjectile.bulletAttack;
             swordPillarTransform.position = transform.position;
-            swordPillarTransform.rotation = Quaternion.LookRotation(bulletAttack.aimVector);
+            Vector3 forward = transform.forward;
+            forward.y = 0f;
+            forward.Normalize();
+            swordPillarTransform.rotation = Util.QuaternionSafeLookRotation(forward, bulletAttack.aimVector);
             float radius = bulletAttack.radius;
             swordPillarTransform.localScale = new Vector3(radius, radius, bulletAttack.maxDistance);
         }
@@ -946,8 +950,23 @@ namespace Demolisher
     }
     public class DemolisherModel : CharacterModel
     {
+        public Animator animator;
+        private float _shakeWeight = 0.01f;
+        public float shakeWeight
+        {
+            get => _shakeWeight;
+            set
+            {
+                _shakeWeight = value;
+                if (!animator) return;
+                int layerIndex = animator.GetLayerIndex("Shake");
+                if (layerIndex < 0) return;
+                animator.SetLayerWeight(layerIndex, value);
+            }
+        }
         public Material devilMaterial;
         public GameObject[] devilObjects;
+        public ParticleSystem[] devilParticles;
         public GameObject[] nonDevilObjects;
         public GameObject swordObject;
         public GameObject gunObject;
@@ -1022,6 +1041,7 @@ namespace Demolisher
                     devilCountApplied = true;
                     foreach (GameObject devilObject in devilObjects) devilObject.SetActive(true);
                     foreach (GameObject nonDevilObject in nonDevilObjects) nonDevilObject.SetActive(false);
+                    foreach (ParticleSystem particleSystem in devilParticles) particleSystem.Play(true);
                     if (devilMaterial)
                     {
                         if (temporaryOverlay) Destroy(temporaryOverlay);
@@ -1031,7 +1051,6 @@ namespace Demolisher
                         temporaryOverlay.originalMaterial = devilMaterial;
                         temporaryOverlay.AddToCharacerModel(this);
                     }
-
                 }
                 else
                 {
@@ -1039,10 +1058,13 @@ namespace Demolisher
                     devilCountApplied = false;
                     foreach (GameObject devilObject in devilObjects) devilObject.SetActive(false);
                     foreach (GameObject nonDevilObject in nonDevilObjects) nonDevilObject.SetActive(true);
+                    foreach (ParticleSystem particleSystem in devilParticles) particleSystem.Stop(true, ParticleSystemStopBehavior.StopEmitting);
                     if (temporaryOverlay) Destroy(temporaryOverlay);
                 }
             }
         }
+        public void DevilUp(AnimationEvent animationEvent) => devilCount++;
+        public void DevilDown(AnimationEvent animationEvent) => devilCount--;
     }
     public class DemolisherModelLocator : ModelLocator
     {
@@ -1153,6 +1175,51 @@ namespace Demolisher
         public bool IsHudAllowed(CameraRigController cameraRigController)
         {
             return true;
+        }
+    }
+    public class XenGrenadeSucker : MonoBehaviour
+    {
+        public static float baseRadius = 24f;
+        public static float baseForce = 12f;
+        public static float minRadiusToEliminate = 2f;
+        public static bool massIsOne = true;
+        public static bool disableAirControlUntilCollision = true;
+        public void FixedUpdate()
+        {
+            Collider[] colliders = Physics.OverlapSphere(transform.position, baseRadius, LayerIndex.CommonMasks.characterBodiesOrDefault);
+            foreach (Collider collider in colliders)
+            {
+                CharacterBody characterBody = collider.GetComponent<CharacterBody>();
+                if (!characterBody) continue;
+                Vector3 vector3 = transform.position - characterBody.corePosition;
+                if (characterBody.characterMotor)
+                {
+                    PhysForceInfo physForceInfo = new PhysForceInfo
+                    {
+                        massIsOne = massIsOne,
+                        disableAirControlUntilCollision = disableAirControlUntilCollision,
+                        ignoreGroundStick = true,
+                        force = vector3 * baseForce
+                    };
+                    characterBody.characterMotor.ApplyForceImpulse(physForceInfo);
+                }
+                else if (characterBody.rigidbody)
+                {
+                    characterBody.rigidbody.AddForce(vector3 * baseForce, ForceMode.VelocityChange);
+                }
+            }
+        }
+        public void OnTriggerEnter(Collider collider)
+        {
+            CharacterBody characterBody = collider.GetComponent<CharacterBody>();
+            if (!characterBody) return;
+
+        }
+        public void Eliminate(CharacterBody characterBody)
+        {
+            CharacterMaster characterMaster = characterBody.master;
+            if (!characterMaster) return;
+            characterMaster.TrueKill();
         }
     }
     public class DemolisherLobbyController : MonoBehaviour

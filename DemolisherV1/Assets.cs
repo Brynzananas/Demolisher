@@ -22,7 +22,7 @@ namespace Demolisher
     public static class Assets
     {
         public static AssetBundle assetBundle;
-        public static AssetBundle assetBundle2;
+        //public static AssetBundle assetBundle2;
         public static GameObject DemolisherBody;
         public static GameObject DemolisherMaster;
         public static GameObject DemolisherEmote;
@@ -30,10 +30,12 @@ namespace Demolisher
         public static SurvivorDef Demolisher;
         public static GameObject Slash;
         public static GameObject FeetEffect;
+        public static GameObject DevilFeetEffect;
         public static GameObject TimestopEffect;
         public static GameObject CracksTrailEffect;
         public static GameObject PillarEffect;
         public static GameObject PillarExplosionEffect;
+        public static GameObject LaserEffect;
         public static GameObject IamRedAsFuck;
         public static EffectDef DemolisherTracer;
         public static EffectDef CollapseExplosion;
@@ -74,6 +76,7 @@ namespace Demolisher
         public static SkillDef Slicing;
         public static SkillDef Collapse;
         public static SkillDef Fly;
+        public static SkillDef Laser;
         public static SkillFamily Passive;
         public static SkillFamily MeleeWeapon;
         public static SkillFamily MeleePrimary;
@@ -105,7 +108,7 @@ namespace Demolisher
         public static void Init()
         {
             assetBundle = AssetBundle.LoadFromFileAsync(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Main.PInfo.Location), "assetbundles", "demolisherassets")).assetBundle;
-            assetBundle2 = AssetBundle.LoadFromFileAsync(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Main.PInfo.Location), "assetbundles", "demolisherassets2")).assetBundle;
+            //assetBundle2 = AssetBundle.LoadFromFileAsync(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Main.PInfo.Location), "assetbundles", "demolisherassets2")).assetBundle;
             SoundAPI.SoundBanks.Add(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Main.PInfo.Location), "soundbanks", "Demoman.bnk"));
             foreach (Material material in assetBundle.LoadAllAssets<Material>())
             {
@@ -142,6 +145,8 @@ namespace Demolisher
                 if (genericSkill.skillName.Contains("Utility")) genericSkill.SetLoadoutTitleTokenOverride("LOADOUT_SKILL_UTILITY");
                 if (genericSkill.skillName.Contains("Special")) genericSkill.SetLoadoutTitleTokenOverride("LOADOUT_SKILL_SPECIAL");
             }
+            CameraTargetParams cameraTargetParams = DemolisherBody.GetComponent<CameraTargetParams>();
+            cameraTargetParams.cameraParams = Addressables.LoadAssetAsync<CharacterCameraParams>("RoR2/Base/Common/ccpStandard.asset").WaitForCompletion();
             CharacterBody demolisherCharacterBody = DemolisherBody.GetComponent<CharacterBody>();
             demolisherCharacterBody.preferredPodPrefab = DemolisherElevator; //LegacyResourcesAPI.Load<GameObject>("Prefabs/NetworkedObjects/SurvivorPod");//Addressables.LoadAssetAsync<GameObject>("RoR2/Base/SurvivorPod/SurvivorPod.prefab").WaitForCompletion();
             demolisherCharacterBody._defaultCrosshairPrefab = LegacyResourcesAPI.Load<GameObject>("Prefabs/Crosshair/SimpleDotCrosshair");// Addressables.LoadAssetAsync<GameObject>("RoR2/Base/UI/StandardCrosshair.prefab").WaitForCompletion();
@@ -208,7 +213,8 @@ namespace Demolisher
             Whirlwind = assetBundle.LoadAsset<SkillDef>("Assets/Demolisher/SkillDefs/MeleeSpecial/DemolisherWhirlwind.asset").RegisterSkillDef();
             Slicing = assetBundle.LoadAsset<SkillDef>("Assets/Demolisher/SkillDefs/MeleeSpecial/DemolisherSlicing.asset").RegisterSkillDef();
             Collapse = assetBundle.LoadAsset<SkillDef>("Assets/Demolisher/SkillDefs/RangedSpecial/DemolisherCollapse.asset").RegisterSkillDef();
-            Fly = assetBundle.LoadAsset<SkillDef>("Assets/Demolisher/SkillDefs/RangedSpecial/DemolisherFly.asset").RegisterSkillDef();
+            Fly = assetBundle.LoadAsset<SkillDef>("Assets/Demolisher/SkillDefs/MeleeSpecial/DemolisherFly.asset").RegisterSkillDef();
+            Laser = assetBundle.LoadAsset<SkillDef>("Assets/Demolisher/SkillDefs/RangedSpecial/DemolisherLaser.asset").RegisterSkillDef();
             Passive = assetBundle.LoadAsset<SkillFamily>("Assets/Demolisher/SkillFamilies/DemolisherPassive.asset").RegisterSkillFamily();
             MeleeWeapon = assetBundle.LoadAsset<SkillFamily>("Assets/Demolisher/SkillFamilies/DemolisherMeleeWeapon.asset").RegisterSkillFamily();
             MeleePrimary = assetBundle.LoadAsset<SkillFamily>("Assets/Demolisher/SkillFamilies/DemolisherMeleePrimary.asset").RegisterSkillFamily();
@@ -226,10 +232,10 @@ namespace Demolisher
             InstantMeleeSwing = assetBundle.LoadAsset<BuffDef>("Assets/Demolisher/Buffs/InstantMeleeSwing.asset").RegisterBuffDef();
             Default = assetBundle.LoadAsset<SkinDef>("Assets/Demolisher/Character/DemolisherDefault.asset");
             Nuclear = assetBundle.LoadAsset<SkinDef>("Assets/Demolisher/Character/DemolisherNuclear.asset");
-            TimestopPP = assetBundle2.LoadAsset<PostProcessProfile>("Assets/Demolisher/DemolisherTimestopPP.asset");
+            //TimestopPP = assetBundle2.LoadAsset<PostProcessProfile>("Assets/Demolisher/DemolisherTimestopPP.asset");
             TimestopEffect = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Effects/DemolisherTimestopEffect.prefab");
-            PostProcessVolume postProcessVolume = TimestopEffect.GetComponent<PostProcessVolume>();
-            postProcessVolume.sharedProfile = TimestopPP;
+            //PostProcessVolume postProcessVolume = TimestopEffect.GetComponent<PostProcessVolume>();
+            //postProcessVolume.sharedProfile = TimestopPP;
             skinSkillVariantsDef = assetBundle.LoadAsset<SkinSkillVariantsDef>("Assets/Demolisher/Character/DemolisherDefaultSkillVariants.asset");
             skinSkillVariantsDef.Register();
             skinNuclearSkillVariantsDef = assetBundle.LoadAsset<SkinSkillVariantsDef>("Assets/Demolisher/Character/DemolisherNuclearSkillVariants.asset");
@@ -239,6 +245,7 @@ namespace Demolisher
             CracksTrailEffect = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Effects/DemolisherCracks.prefab");
             PillarEffect = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Effects/DemolisherPillar.prefab");
             PillarExplosionEffect = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Effects/DemolisherPillarExplosion.prefab");
+            LaserEffect = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Effects/DemolisherLaser.prefab");
             IamRedAsFuck = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Effects/IAmRedAsFuck.prefab");
             SharpnessWeapon = Sharpness.RegisterWeapon<DemolisherWeaponSkillDef, DemolisherBulletAttackWeaponDef>(null, null);
             SharpnessWeapon.moddedDamageTypes = [SharpnessDamageType];
