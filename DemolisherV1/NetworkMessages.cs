@@ -1,11 +1,14 @@
-﻿using R2API.Networking.Interfaces;
-using R2API.Networking;
+﻿using R2API.Networking;
+using R2API.Networking.Interfaces;
+using RoR2;
+using RoR2.Projectile;
+using RoR2.Skills;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Text;
-using UnityEngine.Networking;
 using UnityEngine;
-using RoR2;
+using UnityEngine.Networking;
 
 namespace Demolisher
 {
@@ -61,6 +64,43 @@ namespace Demolisher
         public void Serialize(NetworkWriter writer)
         {
             writer.Write(networkInstanceId);
+        }
+    }
+    public class DemolisherTallSwordNetMessage : INetMessage
+    {
+        private DemolisherSwordPillarProjectile _projectileController;
+        private int _skillIndex;
+        public DemolisherTallSwordNetMessage()
+        {
+
+        }
+        public DemolisherTallSwordNetMessage(DemolisherSwordPillarProjectile projectileController, DemolisherWeaponSkillDef demolisherWeaponSkillDef)
+        {
+            _projectileController = projectileController;
+            _skillIndex = demolisherWeaponSkillDef.skillIndex;
+        }
+        public void Deserialize(NetworkReader reader)
+        {
+            _projectileController = reader.ReadGameObject().GetComponent<DemolisherSwordPillarProjectile>();
+            _skillIndex = reader.ReadInt32();
+        }
+
+        public void OnReceived()
+        {
+            SkillDef skillDef = SkillCatalog.GetSkillDef(_skillIndex);
+            if (!skillDef) return;
+            DemolisherWeaponSkillDef demolisherWeaponSkillDef = skillDef as DemolisherWeaponSkillDef;
+            if (!demolisherWeaponSkillDef) return;
+            DemolisherBulletAttackWeaponDef demolisherBulletAttackWeaponDef = demolisherWeaponSkillDef.demolisherWeaponDef ? demolisherWeaponSkillDef.demolisherWeaponDef as DemolisherBulletAttackWeaponDef : null;
+            if (!demolisherBulletAttackWeaponDef) return;
+            object attack = (object)_projectileController.bulletAttack;
+            demolisherBulletAttackWeaponDef.OneTimeModification(_projectileController.projectileController, ref attack);
+        }
+
+        public void Serialize(NetworkWriter writer)
+        {
+            writer.Write(_projectileController.gameObject);
+            writer.Write(_skillIndex);
         }
     }
     public class VoicelineNetMessage : INetMessage

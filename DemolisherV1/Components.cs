@@ -10,6 +10,7 @@ using RoR2.Projectile;
 using RoR2.Skills;
 using RoR2.UI;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -431,7 +432,7 @@ namespace Demolisher
         public override void Awake()
         {
             base.Awake();
-            if(characterController == null) characterController = GetComponent<CharacterController>();
+            if (characterController == null) characterController = GetComponent<CharacterController>();
         }
         public void Start()
         {
@@ -441,7 +442,7 @@ namespace Demolisher
             transform.forward = vector3;
             if (projectileController == null || projectileController.owner == null) return;
             CharacterBody characterBody = projectileController.owner.GetComponent<CharacterBody>();
-            if(characterBody && characterBody.skillLocator)
+            if (characterBody && characterBody.skillLocator)
             {
                 foreach (GenericSkill genericSkill in characterBody.skillLocator.allSkills)
                 {
@@ -550,23 +551,16 @@ namespace Demolisher
     }
     public class DemolisherSlash : MonoBehaviour
     {
+        public EffectComponent effectComponent;
         public ParticleSystem[] swipeParticles;
-        //public ParticleSystem fireParticle;
-        public void Init(float angle, bool flip, float radius, float distance, float duration)
+        public void Start()
         {
-            Vector3 vector3 = transform.localEulerAngles;
-            vector3.z = angle;
-            transform.localEulerAngles = vector3;
-            if (flip)
+            if (!effectComponent || effectComponent.effectData == null) return;
+            float speed = 1f / effectComponent.effectData.genericFloat;
+            foreach (ParticleSystem particleSystem in swipeParticles)
             {
-                vector3 = transform.localScale;
-                vector3.x *= -1f;
+                particleSystem.playbackSpeed = speed;
             }
-            //swipeParticle.startSize = radius;
-            //fireParticle.startSize = radius;
-            //fireParticle.startSpeed = distance;
-            //swipeParticle.playbackSpeed = 1f / duration;
-            //fireParticle.playbackSpeed = 1f / duration * 2f;
         }
     }
     [RequireComponent(typeof(ProjectileController))]
@@ -675,8 +669,7 @@ namespace Demolisher
     [RequireComponent(typeof(ProjectileController))]
     [RequireComponent(typeof(Rigidbody))]
     [RequireComponent(typeof(ProjectileDamage))]
-    [RequireComponent(typeof(ProjectileImpactExplosion))]
-    public class DemolisherBomb : MonoBehaviour, IProjectileImpactBehavior, IStateSeeker
+    public class DemolisherBomb : MonoBehaviour, IProjectileImpactBehavior
     {
         public float damageCoefficient = 1f;
         public bool useProejctileDamage = true;
@@ -687,7 +680,6 @@ namespace Demolisher
         public Vector3 velocityOnHit = Vector3.up * 3f;
         public Rigidbody rigidbody;
         public ProjectileController projectileController;
-        public ProjectileImpactExplosion projectileImpactExplosion;
         public ProjectileDamage projectileDamage;
         [HideInInspector] public List<CharacterBody> hitBodies = new List<CharacterBody>();
         [HideInInspector] public bool hit;
@@ -701,42 +693,16 @@ namespace Demolisher
                 return vector3.normalized;
             }
         }
-        private IStateTarget _foundState;
-        public IStateTarget foundState { get => _foundState; set => _foundState = value; }
-        public Func<bool> onStateFound => FindChargeState;
-
-        public bool FindChargeState()
-        {
-            IStateCharge stateCharge = foundState as IStateCharge;
-            if (stateCharge == null)
-            {
-                return false;
-            }
-            else
-            {
-                projectileImpactExplosion.lifetime = (stateCharge.maxCharge - stateCharge.chargePercentage) * lifetimeMultiplier;
-                return true;
-            }
-        }
         public void Awake()
         {
             if (rigidbody == null) rigidbody = GetComponent<Rigidbody>();
             if (projectileController == null) projectileController = GetComponent<ProjectileController>();
-            if (projectileImpactExplosion == null) projectileImpactExplosion = GetComponent<ProjectileImpactExplosion>();
             if (projectileDamage == null) projectileDamage = GetComponent<ProjectileDamage>();
-        }
-        public void Start()
-        {
-            if (projectileController.owner)
-            {
-                ownerBody = projectileController.owner.GetComponent<CharacterBody>();
-                (this as IStateSeeker).FindState(ownerBody);
-            }
         }
 
         public void OnProjectileImpact(ProjectileImpactInfo impactInfo)
         {
-            if(!NetworkServer.active) return;
+            if (!NetworkServer.active) return;
             if (hit) return;
             hit = true;
             HurtBox hurtBox = impactInfo.collider.GetComponent<HurtBox>();
@@ -841,7 +807,7 @@ namespace Demolisher
         public int teleportAmount = 1;
         public void Start()
         {
-            if (rigidbody) rigidbody.velocity += Physics.gravity * -1f * 0.2f;
+            if (rigidbody) rigidbody.velocity += Physics.gravity * -1f * contradictGravity;
         }
         public void OnTriggerEnter(Collider collider)
         {
@@ -865,6 +831,8 @@ namespace Demolisher
     {
         public static float startTimer = 0.5f;
         public static float endTimer = 1f;
+        public static float voicelineChancePerKill = 5f;
+        public float voicelineChance;
         public List<PendingVoiceline> pendingVoicelines = [];
         public void OnEnable()
         {
@@ -872,6 +840,7 @@ namespace Demolisher
         }
         private void GlobalEventManager_onCharacterDeathGlobal(DamageReport obj)
         {
+            if (obj.victim == null) return;
             float timer = UnityEngine.Random.Range(startTimer, endTimer);
             if (obj.victim.gameObject == gameObject)
             {
@@ -879,6 +848,9 @@ namespace Demolisher
                 return;
             }
             if (obj.attacker == null || obj.attacker != gameObject) return;
+            voicelineChance += voicelineChancePerKill;
+            if ((!obj.victimIsBoss && !Util.CheckRoll(voicelineChance)) || pendingVoicelines.Count > 0) return;
+            voicelineChance = 0f;
             ProjectileRemoteDetonation projectileRemoteDetonation = obj.damageInfo.inflictor ? obj.damageInfo.inflictor.GetComponent<ProjectileRemoteDetonation>() : null;
             if (projectileRemoteDetonation)
             {
@@ -898,12 +870,12 @@ namespace Demolisher
                 pendingVoiceline.timer -= Time.fixedDeltaTime;
                 if (pendingVoiceline.timer <= 0f)
                 {
-                    RpcPlayVoiceline(pendingVoiceline.voicelineDef);
+                    RpcPlayVoiceline(pendingVoiceline.voicelineDef.id);
                     pendingVoicelines.Remove(pendingVoiceline);
                 }
             }
         }
-        public void OnDisable()
+        public void OnDisable() 
         {
             GlobalEventManager.onCharacterDeathGlobal -= GlobalEventManager_onCharacterDeathGlobal;
         }
@@ -926,12 +898,11 @@ namespace Demolisher
             }
             else
             {
-                RpcPlayVoiceline(voicelineDef);
-
+                RpcPlayVoiceline(voicelineDef.id);
             }
         }
         [ClientRpc]
-        public void RpcPlayVoiceline(VoicelineDef voicelineDef) => PlayVoiceline(voicelineDef);
+        public void RpcPlayVoiceline(int voicelineId) => PlayVoiceline(VoicelineDef.voicelineDefs[voicelineId]);
         public void PlayVoiceline(VoicelineDef voicelineDef) => voicelineDef.Play(gameObject);
         public class PendingVoiceline
         {

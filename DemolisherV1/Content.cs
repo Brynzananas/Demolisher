@@ -12,9 +12,10 @@ namespace Demolisher
     public class Content : IContentPackProvider
     {
         internal ContentPack contentPack = new ContentPack();
-        public string identifier => Main.ModGuid + ".ContentProvider";
+        public string identifier => DemolisherPlugin.ModGuid + ".ContentProvider";
         public static List<GameObject> bodies = new List<GameObject>();
         public static List<BuffDef> buffs = new List<BuffDef>();
+        public static List<ItemDef> items = new List<ItemDef>();
         public static List<SkillDef> skills = new List<SkillDef>();
         public static List<SkillFamily> skillFamilies = new List<SkillFamily>();
         public static List<GameObject> projectiles = new List<GameObject>();
@@ -53,6 +54,7 @@ namespace Demolisher
             contentPack.unlockableDefs.Add([.. unlockableDefs]);
             contentPack.masterPrefabs.Add([.. masters]);
             contentPack.effectDefs.Add([.. effects]);
+            contentPack.itemDefs.Add([.. items]);
             yield break;
         }
     }

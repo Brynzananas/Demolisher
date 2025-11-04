@@ -251,6 +251,7 @@ namespace Demolisher
         public abstract float force { get; }
         public GameObject projectile => currentRangedWeaponDef ? currentRangedWeaponDef.projectile : Assets.GrenadeProjectile;
         public abstract DamageSource damageSource { get; }
+        public abstract float fuse { get; }
         public virtual void FireProjectile(Ray ray, float damage, float force, bool crit)
         {
             StartAimMode(2f, true);
@@ -277,6 +278,7 @@ namespace Demolisher
                     damage = damage * damageCoefficient,
                     force = force,
                     crit = crit,
+                    fuseOverride = fuse,
                     damageTypeOverride = new DamageTypeCombo?(damageTypeCombo),
                 };
                 this.ModifyProjectileInfo(ref fireProjectileInfo);
@@ -293,7 +295,7 @@ namespace Demolisher
             return InterruptPriority.Skill;
         }
     }
-    public class FireGrenadeNetwork : BaseProjectileAttack, IStateTarget
+    /*public class FireGrenadeNetwork : BaseProjectileAttack, IStateTarget
     {
         public override float damageCoefficient => damageCoefficientTransfer;
         public override float force => forceTransfer;
@@ -360,7 +362,7 @@ namespace Demolisher
             writer.Write(charge);
             writer.Write(maxCharge);
         }
-    }
+    }*/
     public class FireGrenade : BaseProjectileAttack
     {
         public override float damageCoefficient => FireGrenadeConfig.damageCoefficient.Value;
@@ -368,6 +370,8 @@ namespace Demolisher
         public override DamageSource damageSource => GetDamageSource();
 
         public static float baseDuration => FireGrenadeConfig.baseDuration.Value;
+        public override float fuse => fuseNew;
+        public float fuseNew = -1f;
         public float duration;
         public float stopwatch;
         public virtual void SetValues()
@@ -404,13 +408,7 @@ namespace Demolisher
             charge += Time.fixedDeltaTime * characterBody.attackSpeed;
             if (isAuthority && (!IsKeyDownAuthority() || charge >= maxCharge))
             {
-                FireGrenadeHoldNetwork fireGrenadeHoldNetwork = EntityStateCatalog.InstantiateState(typeof(FireGrenadeHoldNetwork)) as FireGrenadeHoldNetwork;
-                fireGrenadeHoldNetwork.charge = charge;
-                fireGrenadeHoldNetwork.maxCharge = maxCharge;
-                fireGrenadeHoldNetwork.damageCoefficientTransfer = damageCoefficient;
-                fireGrenadeHoldNetwork.forceTransfer = force;
-                fireGrenadeHoldNetwork.activatorSkillSlot = activatorSkillSlot;
-                outer.SetNextState(fireGrenadeHoldNetwork);
+                outer.SetNextState(new FireGrenade{activatorSkillSlot = activatorSkillSlot, fuseNew = maxCharge - charge});
             }
         }
         public override InterruptPriority GetMinimumInterruptPriority()
@@ -426,6 +424,7 @@ namespace Demolisher
         public bool _taken;
         public bool taken { get => _taken; set => _taken = value; }
         public EntityState entityState => this;
+        public override float fuse => -1f;
 
         public override void OnEnter()
         {
@@ -461,6 +460,8 @@ namespace Demolisher
         public static float radius => MediumMeleeAttackConfig.radius.Value;
         public static float force => MediumMeleeAttackConfig.force.Value;
         public static float maxDistance => MediumMeleeAttackConfig.maxDistance.Value;
+        public static float attackSpeedRampUpRate = 0.25f;
+        public static float maxAttackSpeedRampUp = 3f;
         public static float swingUpCrossfade = 0.05f;
         public static float swingDownCrossfade = 0.05f;
         public static float bufferEmptyTransition = 0.05f;
@@ -482,8 +483,9 @@ namespace Demolisher
         }
         public virtual void SetValues()
         {
-            attackDuration = baseAttackDuration / characterBody.attackSpeed;
-            duration = baseDuration / characterBody.attackSpeed;
+            float rampUp = Mathf.Min((fixedAge * attackSpeedRampUpRate) + 1f, maxAttackSpeedRampUp);
+            attackDuration = baseAttackDuration / characterBody.attackSpeed / rampUp;
+            duration = baseDuration / characterBody.attackSpeed / rampUp;
         }
         public override void FixedUpdate()
         {
@@ -495,7 +497,6 @@ namespace Demolisher
                 StopFiring();
                 FireMeleeAttack(attackDuration);
                 stopwatch = duration;
-                Chat.AddMessage("Reset 2");
                 if (NetworkServer.active) characterBody.SetBuffCount(Assets.InstantMeleeSwing.buffIndex, 0);
             }
             if (!firing)
@@ -565,16 +566,16 @@ namespace Demolisher
     }
     public class ShieldCharge : BaseMeleeAttack
     {
-        public static float baseDuration = 1.5f;
-        public static float baseWalkSpeedMultiplier = 3.5f;
-        public static float shieldBashRadiusMultiplier = 6f;
-        public static float shieldBashDistance = 3f;
-        public static float shieldBashDamageCoefficient = 2f;
-        public static float shieldBashSpeedDamageCoefficient = 0.5f;
-        public static float shieldBashProcCoefficient = 1f;
-        public static float shieldBashBaseForce = 200f;
-        public static float shieldBashVelocityForce = 100f;
-        public static float shieldBashTimer = 1f;
+        public static float baseDuration => ShieldChargeConfig.baseDuration.Value;
+        public static float baseWalkSpeedMultiplier => ShieldChargeConfig.baseWalkSpeedMultiplier.Value;
+        public static float shieldBashRadiusMultiplier => ShieldChargeConfig.shieldBashRadiusMultiplier.Value;
+        public static float shieldBashDistance => ShieldChargeConfig.shieldBashDistance.Value;
+        public static float shieldBashDamageCoefficient => ShieldChargeConfig.shieldBashDamageCoefficient.Value;
+        public static float shieldBashSpeedDamageCoefficient => ShieldChargeConfig.shieldBashSpeedDamageCoefficient.Value;
+        public static float shieldBashProcCoefficient => ShieldChargeConfig.shieldBashProcCoefficient.Value;
+        //public static float shieldBashBaseForce = 200f;
+        //public static float shieldBashVelocityForce = 100f;
+        //public static float shieldBashTimer = 1f;
         public static float shieldBashVelocityForceMultiplier = 1f;
         public static float shieldBashGravityForceMultiplier = 1f;
         public static LayerMask shieldBashLayerMask = LayerIndex.world.mask;
@@ -626,7 +627,6 @@ namespace Demolisher
         }
         public virtual void ShieldBash()
         {
-            ContinueFireMeleeAttack(new Ray(characterBody.corePosition, aimDirectionGrounded));
             Vector3 velocity = Vector3.zeroVector;
             if (characterMotor)
             {
@@ -636,10 +636,11 @@ namespace Demolisher
             {
                 velocity = rigidbody.velocity;
             }
-            //float velocityMagnitude = velocity.magnitude;
             Vector3 force = velocity * shieldBashVelocityForceMultiplier + (Physics.gravity * -1f * shieldBashGravityForceMultiplier);
             bulletAttack.SetBonusForce(force);
-            UpdateBulletAttack(characterBody.damage * shieldBashDamageCoefficient, shieldBashProcCoefficient, 0f, RollCrit(), characterBody.radius * shieldBashRadiusMultiplier, shieldBashDistance, false);
+            UpdateBulletAttack(characterBody.damage * shieldBashDamageCoefficient, shieldBashProcCoefficient, 0f, RollCrit(), shieldBashRadiusMultiplier, shieldBashDistance, false);
+            ContinueFireMeleeAttack(new Ray(characterBody.corePosition, aimDirectionGrounded));
+            //float velocityMagnitude = velocity.magnitude;
 
             /*            Collider[] colliders = Physics.OverlapSphere(characterBody.corePosition + direction * characterBody.radius, characterBody.radius * shieldBashRadiusMultiplier, LayerIndex.CommonMasks.characterBodies + LayerIndex.CommonMasks.fakeActorLayers);
             foreach (Collider collider in colliders)
@@ -692,7 +693,7 @@ namespace Demolisher
             bulletAttack.SetForceMassIsOne(true);
             bulletAttack.SetForceAlwaysApply(true);
             bulletAttack.SetForceDisableAirControlUntilCollision(true);
-            UpdateBulletAttack(characterBody.damage * shieldBashDamageCoefficient, shieldBashProcCoefficient, shieldBashBaseForce, RollCrit(), characterBody.radius * shieldBashRadiusMultiplier, shieldBashDistance, true);
+            UpdateBulletAttack(characterBody.damage * shieldBashDamageCoefficient, shieldBashProcCoefficient, 0f, RollCrit(), shieldBashRadiusMultiplier, shieldBashDistance, true);
             ConstantUpdateBulletAttack(new Ray(characterBody.corePosition, aimDirectionGrounded));
             //Util.PlaySound("Play_stickybomblauncher_det", gameObject);
             if (characterMotor)
@@ -784,18 +785,18 @@ namespace Demolisher
     }
     public class WhirlwindMelee : BaseMeleeAttack
     {
-        public static float damageCoefficient = 2f;
-        public static float procCoefficient = 1f;
-        public static float maxDistance = 9f;
-        public static float force = 300f;
-        public static float radius = 3f;
-        public static float maxDuration = 5f;
+        public static float damageCoefficient => WhirlwindMeleeConfig.damageCoefficient.Value;
+        public static float procCoefficient => WhirlwindMeleeConfig.procCoefficient.Value;
+        public static float maxDistance => WhirlwindMeleeConfig.maxDistance.Value;
+        public static float force => WhirlwindMeleeConfig.force.Value;
+        public static float radius => WhirlwindMeleeConfig.radius.Value;
+        public static float maxDuration => WhirlwindMeleeConfig.maxDistance.Value;
         public static float spinDuration = 0.25f;
         public static float spinEnterCrossfade = 0.05f;
         public static float spinExitCrossfade = 0.05f;
+        public static float baseDegreesPerSecond => WhirlwindMeleeConfig.baseDegreesPerSecond.Value;
+        public static float baseRotationsPerSecond => WhirlwindMeleeConfig.baseRotationsPerSecond.Value;
         public override DamageSource damageSource => GetDamageSource();
-        public static float baseDegreesPerSecond = 90f;
-        public static float baseRotationsPerSecond = 5f;
         public float duration;
         public float degreesPerSecond;
         public float rotationsPerSecond;
@@ -819,10 +820,11 @@ namespace Demolisher
                     outer.SetNextStateToMain();
                     return;
                 }
+                Util.PlaySound("Play_DemoSwordSwing", gameObject);
                 if (activatorSkillSlot) activatorSkillSlot.stock--;
             }
             if (animator) animator.SetBool("isSpinning", true);
-            direction = Vector3.RotateTowards(direction, aimDirectionGrounded, degreesPerSecond / 57f * Time.fixedDeltaTime, 0f);
+            direction = Vector3.RotateTowards(direction, inputBank ? inputBank.moveVector : aimDirectionGrounded, degreesPerSecond / 57f * Time.fixedDeltaTime, 0f);
             rotation = Quaternion.AngleAxis(rotationsPerSecond * 360f * Time.fixedDeltaTime, Vector3.up) * rotation;
             if (characterDirection)
             {
@@ -847,17 +849,16 @@ namespace Demolisher
         public override void OnEnter()
         {
             base.OnEnter();
-            direction = aimDirectionGrounded;
+            direction = inputBank ? inputBank.moveVector : aimDirectionGrounded;
             rotation = direction;
-            Util.PlaySound("Play_DemoWhirlwind", gameObject);
             SetValues();
+            Util.PlaySound("Play_DemoSwordSwing", gameObject);
             CreateBulletAttack();
             UpdateBulletAttack(damageCoefficient * characterBody.damage, procCoefficient, force, RollCrit(), radius, maxDistance, true);
         }
         public override void OnExit()
         {
             base.OnExit();
-            Util.PlaySound("Stop_DemoWhirlwind", gameObject);
             if (animator) animator.SetBool("isSpinning", false);
         }
         public override InterruptPriority GetMinimumInterruptPriority()
@@ -868,15 +869,15 @@ namespace Demolisher
     public class Parry : BaseSkillState
     {
         public static Dictionary<GameObject, List<Parry>> activeParries = new Dictionary<GameObject, List<Parry>>();
-        public static float baseParryWindow = 1f;
-        public static float invincibilityTime = 1f;
-        public static float damageCoefficient = 2f;
-        public static float procCoefficient = 1f;
-        public static float force = 300f;
-        public static float radius = 18f;
+        public static float baseParryWindow => ParryConfig.baseParryWindow.Value;
+        public static float invincibilityTime => ParryConfig.invincibilityTime.Value;
+        public static float damageCoefficient => ParryConfig.damageCoefficient.Value;
+        public static float procCoefficient => ParryConfig.procCoefficient.Value;
+        public static float force => ParryConfig.force.Value;
+        public static float radius => ParryConfig.radius.Value;
         public static float effectScale = 2f;
-        public static float baseMovementStart = 24f;
-        public static float baseMovementEnd = 300f;
+        public static float baseMovementStart => ParryConfig.baseMovementStart.Value;
+        public static float baseMovementEnd => ParryConfig.baseMovementEnd.Value;
         public Ray ray;
         public float parryWindow;
         public virtual void SetValues()
@@ -951,7 +952,20 @@ namespace Demolisher
             EffectManager.SpawnEffect(Assets.ParryEffect.prefab, effectData, true);
             characterBody.AddTimedBuff(DLC2Content.Buffs.HiddenRejectAllDamage, invincibilityTime);
             Util.CleanseBody(characterBody, true, false, true, true, true, true);
-            if (characterMotor) characterMotor.ApplyForce(ray.direction * -1f * baseMovementEnd, true);
+            if (characterMotor)
+            {
+                Vector3 vector3 = characterMotor.velocity;
+                vector3.x = 0f;
+                vector3.z = 0f;
+                PhysForceInfo physForceInfo = new PhysForceInfo
+                {
+                    force = ray.direction * -1f * baseMovementEnd + vector3 * -1f,
+                    massIsOne = true,
+                    ignoreGroundStick = true,
+                    disableAirControlUntilCollision = false,
+                };
+                characterMotor.ApplyForceImpulse(physForceInfo);
+            }
             activatorSkillSlot.AddOneStock();
             outer.SetNextStateToMain();
         }
@@ -1030,18 +1044,18 @@ namespace Demolisher
     }
     public class FireCollapse : DemolisherBaseState
     {
-        public static float bulletDamageCoefficient = 100f;
-        public static float bulletProcCoefficient = 1f;
-        public static float explosionDamageCoefficient = 100f;
-        public static float explosionProcCoefficient = 1f;
-        public static float bulletForce = 3000f;
-        public static float explosionForce = 3000f;
-        public static float bulletRadius = 1f;
-        public static float explosionRadius = 24f;
+        public static float bulletDamageCoefficient => CollapseConfig.bulletDamageCoefficient.Value;
+        public static float bulletProcCoefficient => CollapseConfig.bulletProcCoefficient.Value;
+        public static float explosionDamageCoefficient => CollapseConfig.explosionDamageCoefficient.Value;
+        public static float explosionProcCoefficient => CollapseConfig.explosionProcCoefficient.Value;
+        public static float bulletForce => CollapseConfig.bulletForce.Value;
+        public static float explosionForce => CollapseConfig.explosionForce.Value;
+        public static float bulletRadius => CollapseConfig.bulletRadius.Value;
+        public static float explosionRadius => CollapseConfig.explosionRadius.Value;
         public static float fireANimationDuration = 0.5f;
         public static float crossfade = 0.05f;
-        public static float selfForce = 24f;
-        public static float groundedForceReduction = 3f;
+        public static float selfForce => CollapseConfig.selfForce.Value;
+        public static float selfForceGrounded => CollapseConfig.selfForceGrounded.Value;
         public override void OnEnter()
         {
             base.OnEnter();
@@ -1099,15 +1113,15 @@ namespace Demolisher
                         massIsOne = true,
                         ignoreGroundStick = true,
                         disableAirControlUntilCollision = false,
-                        force = ray.direction * selfForce * -1f / (characterMotor.isGrounded ? groundedForceReduction : 1f)
+                        force = ray.direction * (characterMotor.isGrounded ? selfForceGrounded : selfForce) * -1f
                     };
                     characterMotor.ApplyForceImpulse(physForceInfo);
                 }
                 else if (rigidbody)
                 {
-                    rigidbody.AddForce(ray.direction * selfForce * -1f, ForceMode.VelocityChange);
+                    rigidbody.AddForce(ray.direction * selfForceGrounded * -1f, ForceMode.VelocityChange);
                 }
-                    outer.SetNextStateToMain();
+                outer.SetNextStateToMain();
             }
         }
 
@@ -1282,9 +1296,9 @@ namespace Demolisher
     }
     public class FireTallSword : DemolisherBaseState
     {
-        public static float baseDuration = 0.5f;
-        public static float damageCoefficient = 2f;
-        public static float force = 300f;
+        public static float baseDuration => FireTallSwordConfig.baseDuration.Value;
+        public static float damageCoefficient => FireTallSwordConfig.damageCoefficient.Value;
+        public static float force => FireTallSwordConfig.force.Value;
         public float duration;
         public bool stateTaken;
         public override void OnEnter()
@@ -1332,14 +1346,14 @@ namespace Demolisher
     {
         public static int count;
         public static GameObject ppEffect;
-        public static float damageCoefficient = 5f;
-        public static float procCoefficient = 1f;
-        public static float force = 0f;
-        public static float radius = 2f;
-        public static float baseTimeDivisionMultiplier = 10f;
-        public static float baseDistance = 24f;
-        public static float baseDuration = 12f;
-        public static int stockMultiplier = 4;
+        public static float damageCoefficient => SlicingConfig.damageCoefficient.Value;
+        public static float procCoefficient => SlicingConfig.procCoefficient.Value;
+        public static float force => SlicingConfig.force.Value;
+        public static float radius => SlicingConfig.radius.Value;
+        public static float baseTimeDivisionMultiplier => SlicingConfig.baseTimeDivisionMultiplier.Value;
+        public static float baseDistance => SlicingConfig.baseDistance.Value;
+        public static float baseDuration => SlicingConfig.baseDuration.Value;
+        public static int stockMultiplier => SlicingConfig.stockMultiplier.Value;
         public float timeDivisionMultiplier;
         public float duration;
         public CharacterMaster characterMaster;
@@ -1457,6 +1471,7 @@ namespace Demolisher
                 tracerEffectPrefab = Assets.DemolisherTracer.prefab
                 //tracerEffectPrefab = Assets.DemolisherTracer.prefab
             };
+            bulletAttack.SetNoWeaponIfOwner(true);
             object attack = bulletAttack;
             currentMeleeWeaponDef?.OneTimeModification(this, ref attack);
         }
@@ -1605,10 +1620,10 @@ namespace Demolisher
     }
     public class ChainDash : DemolisherBaseState
     {
-        public static float baseStartWindow = 0.2f;
-        public static float baseEndWindow = 0.4f;
-        public static float speedMultiplier = 5f;
-        public static float moveVectorSmoothTime = 0.5f;
+        public static float baseStartWindow => ChainDashConfig.baseStartWindow.Value;
+        public static float baseEndWindow => ChainDashConfig.baseEndWindow.Value;
+        public static float speedMultiplier => ChainDashConfig.speedMultiplier.Value;
+        public static float moveVectorSmoothTime => ChainDashConfig.moveVectorSmoothTime.Value;
         public static float baseEffectDuration = 0.1f;
         public static float effectScale = 1f;
         public float effectDuration;
@@ -1621,8 +1636,8 @@ namespace Demolisher
         public Vector3 moveVector;
         public Vector3 moveVectorVelocity;
         public Animator modelAnimator;
-        //public int chainCount;
         public BodyAnimatorSmoothingParameters.SmoothingParameters smoothingParameters;
+        public bool success;
         private bool keyPressed => keyDown && !wasKeyDown;
         public override void OnEnter()
         {
@@ -1667,7 +1682,8 @@ namespace Demolisher
             {
                 if (stopwatch >= startWindow && stopwatch <= endWindow)
                 {
-                    outer.SetNextState(new ChainDash { activatorSkillSlot = activatorSkillSlot });
+                    success = true;
+                    outer.SetNextState(new ChainDash { activatorSkillSlot = activatorSkillSlot});
                 }
                 else
                 {
@@ -1680,7 +1696,7 @@ namespace Demolisher
         public override void OnExit()
         {
             base.OnExit();
-            if (modelAnimator)
+            if (modelAnimator && !success)
             {
                 modelAnimator.SetBool("isStep", false);
             }
@@ -1695,7 +1711,6 @@ namespace Demolisher
         }
         public virtual void SetValues()
         {
-            //chainCount++;
             Ray ray = GetAimRay();
             Vector3 aimDirection = ray.direction;
             aimDirection.y = 0f;
@@ -1735,17 +1750,9 @@ namespace Demolisher
                 modelAnimator.SetBool(AnimationParameters.isGrounded, true);
                 modelAnimator.SetBool("isStep", true);
                 modelAnimator.SetBool(AnimationParameters.isSprinting, false);
-                modelAnimator.SetFloat(AnimationParameters.turnAngle, characterAnimatorWalkParamCalculator.remainingTurnAngle);
+                modelAnimator.SetFloat(AnimationParameters.turnAngle, 0f);
             }
-            if (NetworkServer.active)
-            {
-                characterBody.AddBuff(Assets.InstantMeleeSwing);
-
-            }
-            else
-            {
-                characterBody.AddBuffAuthotiry(Assets.InstantMeleeSwing);
-            }
+            if (NetworkServer.active) characterBody.AddBuff(Assets.InstantMeleeSwing);
             stopwatch = 0f;
         }
         private void HandleSkill(GenericSkill skillSlot, ref InputBankTest.ButtonState buttonState)
@@ -1756,13 +1763,31 @@ namespace Demolisher
 			if (skillSlot.mustKeyPress && buttonState.hasPressBeenClaimed) return;
 			if (skillSlot.ExecuteIfReady()) buttonState.hasPressBeenClaimed = true;
         }
+        //public override void OnSerialize(NetworkWriter writer)
+        //{
+        //    base.OnSerialize(writer);
+        //    writer.Write(success);
+        //}
+        //public override void OnDeserialize(NetworkReader reader)
+        //{
+        //    base.OnDeserialize(reader);
+        //    success = reader.ReadBoolean();
+        //}
     }
-    public class Fly : DemolisherBaseState, ICameraStateProvider
+    public class Fly : DemolisherBaseState
     {
-        public static float baseFlyVectorSmoothTime = 0.2f;
-        public static float baseFlyVectorVisualSmoothTime = 0.2f;
-        public static float baseSpeedMultiplier = 0.5f;
-        public static float baseSpeedSmoothTime = 1f;
+        public static float baseFlyVectorSmoothTime => FlyConfig.baseFlyVectorSmoothTime.Value;
+        public static float baseFlyVectorVisualSmoothTime => FlyConfig.baseFlyVectorSmoothTime.Value;
+        public static float baseSpeedMultiplier => FlyConfig.baseSpeedMultiplier.Value;
+        public static float baseSpeedSmoothTime => FlyConfig.baseSpeedSmoothTime.Value;
+        public static float groundPush => FlyConfig.groundPush.Value;
+        public static float stompForce => FlyConfig.stompForce.Value;
+        public static float stompBaseRadius => FlyConfig.stompBaseRadius.Value;
+        public static float stompBaseDamageCoefficient => FlyConfig.stompBaseDamageCoefficient.Value;
+        public static float stompVelocityDamageCoefficient => FlyConfig.stompVelocityDamageCoefficient.Value;
+        public static float stompVelocityRadiusMultiplier => FlyConfig.stompVelocityRadiusMultiplier.Value;
+        public static BlastAttack.FalloffModel stompFalloff => FlyConfig.stompFalloff.Value;
+        public static float stompProcCoefficient => FlyConfig.stompProcCoefficient.Value;
         public static float minFixedAge = 1f;
         public static float setCameraSmoothTime = 0.2f;
         public static float unsetCameraSmoothTime = 0.2f;
@@ -1809,6 +1834,7 @@ namespace Demolisher
                 demolisherModel.devilCount++;
                 demolisherModel.shakeWeight += shake;
             }
+            if (NetworkServer.active) characterBody.AddBuff(Assets.IgnoreBoots);
             if (isAuthority)
             {
                 if (cameraTargetParams)
@@ -1834,6 +1860,11 @@ namespace Demolisher
                     cameraParamsOverrideHandle = cameraTargetParams.AddParamsOverride(cameraParamsOverrideRequest, setCameraSmoothTime);
                 }
                 characterMotor.onMovementHit += CharacterMotor_onMovementHit;
+                if (characterMotor.isGrounded)
+                {
+                    characterMotor.Motor.ForceUnground();
+                    characterMotor.velocity += characterMotor.estimatedGroundNormal * groundPush;
+                }
                 //foreach (CameraRigController cameraRigController in CameraRigController.readOnlyInstancesList)
                 //{
                 //    cameraRigController.SetOverrideCam(this, setCameraSmoothTime);
@@ -1850,17 +1881,17 @@ namespace Demolisher
             {
                 attacker = characterBody.gameObject,
                 attackerFiltering = AttackerFiltering.Default,
-                baseDamage = characterBody.damage * Hooks.stompBaseDamageCoefficient + characterBody.damage * Hooks.stompVelocityDamageCoefficient * magnitude,
-                baseForce = Hooks.stompForce,
+                baseDamage = characterBody.damage * stompBaseDamageCoefficient + characterBody.damage * stompVelocityDamageCoefficient * magnitude,
+                baseForce = stompForce,
                 crit = characterBody.RollCrit(),
                 damageColorIndex = DamageColorIndex.Default,
-                falloffModel = Hooks.stompFalloff,
+                falloffModel = stompFalloff,
                 inflictor = characterBody.gameObject,
                 position = characterBody.corePosition,
                 damageType = new DamageTypeCombo(DamageType.Stun1s, DamageTypeExtended.Generic, GetDamageSource()),
-                procCoefficient = Hooks.stompProcCoefficient,
-                radius = Hooks.stompBaseRadius + magnitude * Hooks.stompVelocityRadiusMultiplier,
-                teamIndex = characterBody.teamComponent ? characterBody.teamComponent.teamIndex : TeamIndex.Neutral,
+                procCoefficient = stompProcCoefficient,
+                radius = stompBaseRadius + magnitude * stompVelocityRadiusMultiplier,
+                teamIndex = GetTeam(),
             };
             blastAttack.Fire();
             EffectData effectData = new()
@@ -1897,12 +1928,12 @@ namespace Demolisher
             base.FixedUpdate();
             Ray ray = GetAimRay();
             if (!isAuthority) return;
-            if (skillLocator && inputBank)
-            {
-                HandleSkill(skillLocator.primary, ref inputBank.skill1);
-                HandleSkill(skillLocator.secondary, ref inputBank.skill2);
-                HandleSkill(skillLocator.utility, ref inputBank.skill3);
-            }
+            //if (skillLocator && inputBank)
+            //{
+            //    HandleSkill(skillLocator.primary, ref inputBank.skill1);
+            //    HandleSkill(skillLocator.secondary, ref inputBank.skill2);
+            //    HandleSkill(skillLocator.utility, ref inputBank.skill3);
+            //}
             //if (speed < maxSpeed) speed = Mathf.SmoothDamp(speed, maxSpeed, ref speedVelocity, baseSpeedSmoothTime / characterBody.attackSpeed, float.MaxValue, Time.fixedDeltaTime);
             speed += characterBody.moveSpeed * baseSpeedMultiplier / Mathf.Min(minFixedAge, fixedAge + fixedAgeAddition) * Time.fixedDeltaTime;
             flyVector = Vector3.SmoothDamp(flyVector, ray.direction, ref flyVectorVelocity, baseFlyVectorSmoothTime / characterBody.attackSpeed, float.MaxValue, Time.fixedDeltaTime);
@@ -1927,6 +1958,7 @@ namespace Demolisher
         public override void OnExit()
         {
             base.OnExit();
+            if (NetworkServer.active) if (characterBody.HasBuff(Assets.IgnoreBoots))characterBody.RemoveBuff(Assets.IgnoreBoots);
             if (effectApplied && demolisherModel)
             {
                 demolisherModel.devilCount--;
@@ -1957,22 +1989,6 @@ namespace Demolisher
             }
 
         }
-        public void GetCameraState(CameraRigController cameraRigController, ref CameraState cameraState)
-        {
-            cameraState.position = characterBody.corePosition;
-        }
-        public bool IsUserLookAllowed(CameraRigController cameraRigController)
-        {
-            return true;
-        }
-        public bool IsUserControlAllowed(CameraRigController cameraRigController)
-        {
-            return true;
-        }
-        public bool IsHudAllowed(CameraRigController cameraRigController)
-        {
-            return true;
-        }
         public void HandleSkill (GenericSkill skillSlot, ref InputBankTest.ButtonState buttonState)
 		{
 			if (!skillSlot) return;
@@ -1986,14 +2002,16 @@ namespace Demolisher
     }
     public class Laser : BaseMeleeAttack
     {
-        public static float damageCoefficient = 2f;
-        public static float procCoefficient = 1f;
-        public static float force = 0f;
-        public static float range = 128f;
-        public static float radius = 3f;
-        public static float hitInterval = 0.1f;
+        public static float damageCoefficient => LaserConfig.damageCoefficient.Value;
+        public static float procCoefficient => LaserConfig.procCoefficient.Value;
+        public static float force => LaserConfig.force.Value;
+        public static float range => LaserConfig.range.Value;
+        public static float radius => LaserConfig.radius.Value;
+        public static float hitInterval => LaserConfig.hitInterval.Value;
         public static float baseDuration = 6f;
         public static float baseShakeAddition = 0.2f;
+        public static float visualLaserSmoothTime = 0.05f;
+        public Vector3 laserVelocity;
         public float shakeAddition;
         public GameObject laserEffect;
         public float stopwatch;
@@ -2046,7 +2064,7 @@ namespace Demolisher
             base.Update();
             StartAimMode(2f, true);
             Ray ray = GetAimRay();
-            laserEffect.transform.rotation = Util.QuaternionSafeLookRotation(ray.direction);
+            laserEffect.transform.forward = Vector3.SmoothDamp(laserEffect.transform.forward, ray.direction, ref laserVelocity, visualLaserSmoothTime, float.MaxValue, Time.deltaTime);
         }
         public override void OnExit()
         {

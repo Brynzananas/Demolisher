@@ -1,4 +1,5 @@
 ﻿using BepInEx.Configuration;
+using BrynzaAPI;
 using Mono.Cecil.Cil;
 using MonoMod.Cil;
 using R2API;
@@ -20,17 +21,38 @@ namespace Demolisher
 {
     public class Keywords
     {
-        public const string MediumMeleeAttackName = "Medium Melee Attack";
+        public const string SharpnessName = "Sharpness";
+        public const string SoftnessName = "Softness";
+        public const string ChaosName = "Chaos";
+        public const string BootsName = "Heavy Boots";
+        public const string MediumMeleeAttackName = "Sword Slash";
         public const string FireGrenadeName = "Fire Grenade";
-        public const string ShieldChargeName = "Shield Charge";
+        public const string ShieldChargeName = "Charge";
+        public const string WhirlwindMeleeName = "Whirlwind";
+        public const string CollapseName = "Collapse";
+        public const string FireTallSwordName = "Ground Slice";
+        public const string ParryName = "Parry";
+        public const string SlicingName = "Slicing Flow";
+        public const string SlamName = "Dark Descent";
+        public const string ChainDashName = "Chain Dash";
+        public const string FlyName = "Devil Parcel";
+        public const string LaserName = "Pressure";
         public const string DamageCoefficientName = "Damage Coefficient";
+        public const string SpeedDamageCoefficientName = "Damage by Speed Coefficient";
         public const string ProcCoefficientName = "Proc Coefficient";
         public const string ForceName = "Force";
         public const string DurationName = "Duration";
+        public const string SpeedMultiplierName = "Speed Multiplier";
         public const string MaxChargeName = "Max Charge";
         public const string AttackDurationName = "Attack Duration";
         public const string RadiusName = "Radius";
+        public const string SpeedRadiusName = "Radius by Speed";
+        public const string MovementControlName = "Movement Control";
         public const string DistanceName = "Distance";
+        public const string RangeName = "Range";
+        public const string BulletName = "Bullet";
+        public const string ExplosionName = "Explosion";
+        public const string BlastFalloffName = "Explosion Falloff";
     }
     public static class Utils
     {
@@ -51,12 +73,20 @@ namespace Demolisher
         }
         public static ConfigEntry<T> CreateConfig<T>(string section, string key, T defaultValue, string description)
         {
-            return CreateConfig(Main.configFile, section, key, defaultValue, description);
+            return CreateConfig(DemolisherPlugin.configFile, section, key, defaultValue, description);
         }
         public static ConfigEntry<T> CreateConfig<T>(ConfigFile configFile, string section, string key, T defaultValue, string description)
         {
-            ConfigEntry<T> entry = configFile.Bind(section, key, defaultValue, description);
-            if (Main.riskOfOptionsEnabled) ModCompatabilities.RiskOfOptionsCompatability.AddConfig(entry);
+            ConfigDefinition configDefinition = new ConfigDefinition(section, key);
+            object value = null;
+            if (BrynzaAPI.BrynzaAPI.defaultConfigValues.TryGetValue(configFile, out Dictionary<ConfigDefinition, string> keyValuePairs) && keyValuePairs.TryGetValue(configDefinition, out string oldDefaultValue) && configFile.OrphanedEntries.TryGetValue(configDefinition, out string oldValue))
+            {
+                if (oldDefaultValue != defaultValue.ToString() && oldDefaultValue == oldValue) value = defaultValue;
+            }
+            ConfigDescription configDescription = new ConfigDescription(description);
+            ConfigEntry<T> entry = configFile.Bind(configDefinition, defaultValue, configDescription);
+            if (value != null) entry.Value = (T)value;
+            if (DemolisherPlugin.riskOfOptionsEnabled) ModCompatabilities.RiskOfOptionsCompatability.AddConfig(entry);
             return entry;
         }
         public static string GetInScenePath(Transform transform)
@@ -124,6 +154,12 @@ namespace Demolisher
             buffs.Add(buffDef);
             onBuffDefRegistered?.Invoke(buffDef);
             return buffDef;
+        }
+        public static T RegisterItemDef<T>(this T itemDef, Action<T> onItemDefRegistered = null) where T : ItemDef
+        {
+            items.Add(itemDef);
+            onItemDefRegistered?.Invoke(itemDef);
+            return itemDef;
         }
         public static GameObject RegisterProjectile(this GameObject projectile, Action<GameObject> onProjectileRegistered = null)
         {

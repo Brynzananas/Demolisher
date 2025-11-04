@@ -78,21 +78,23 @@ namespace Demolisher
             orig(newBodyPrefabs);
             Assets.DemolisherBodyIndex = BodyCatalog.FindBodyIndex("DemolisherBody");
         }
-        public static float stompNeededYVelocity = 48f;
-        public static float stompNeededVelocity = 48f;
-        public static float stompForce = 100f;
-        public static float stompBaseRadius = 3f;
-        public static float stompBaseDamageCoefficient = 1f;
-        public static float stompVelocityDamageCoefficient = 0.2f;
-        public static float stompVelocityRadiusMultiplier = 0.5f;
-        public static float stompNextJumpReductionCoefficient = 0.75f;
-        public static BlastAttack.FalloffModel stompFalloff = BlastAttack.FalloffModel.Linear;
-        public static float stompProcCoefficient = 1f;
+        public static float stompNeededYVelocity => BootsConfig.stompNeededVelocity.Value;
+        public static float stompNeededVelocity => BootsConfig.stompNeededVelocity.Value;
+        public static float stompForce => BootsConfig.stompForce.Value;
+        public static float stompBaseRadius => BootsConfig.stompBaseRadius.Value;
+        public static float stompBaseDamageCoefficient => BootsConfig.stompBaseDamageCoefficient.Value;
+        public static float stompVelocityDamageCoefficient => BootsConfig.stompVelocityDamageCoefficient.Value;
+        public static float stompVelocityRadiusMultiplier => BootsConfig.stompVelocityRadiusMultiplier.Value;
+        public static BlastAttack.FalloffModel stompFalloff => BootsConfig.stompFalloff.Value;
+        public static float stompProcCoefficient => BootsConfig.stompProcCoefficient.Value;
         private static void GlobalEventManager_OnCharacterHitGroundServer(On.RoR2.GlobalEventManager.orig_OnCharacterHitGroundServer orig, GlobalEventManager self, CharacterBody characterBody, CharacterMotor.HitGroundInfo hitGroundInfo)
         {
             orig(self, characterBody, hitGroundInfo);
-            if (characterBody.bodyIndex == Assets.DemolisherBodyIndex)
+            if (characterBody.inventory && characterBody.inventory.GetItemCount(Assets.BootsPassive) > 0)
             {
+                bool hasBuff = characterBody.HasBuff(Assets.IgnoreBoots);
+                characterBody.SetBuffCount(Assets.IgnoreBoots.buffIndex, 0);
+                if (hasBuff) return;
                 float magnitude = hitGroundInfo.velocity.magnitude;
                 //float num = Mathf.Abs(hitGroundInfo.velocity.y);
                 if (magnitude >= stompNeededVelocity)
@@ -255,9 +257,9 @@ namespace Demolisher
             }
         }
 
-        public static float SharpnessCritAddition = 10f;
-        public static float SharpnessDamageMultiplier = 3f;
-        public static float SharpnessCooldown = 10f;
+        public static float SharpnessCritAddition => SharpnessConfig.SharpnessCritAddition.Value;
+        public static float SharpnessDamageMultiplier => SharpnessConfig.SharpnessDamageMultiplier.Value;
+        public static float SharpnessCooldown => SharpnessConfig.SharpnessCooldown.Value;
         public static float BombDoubleDonkDamageMultiplier = 2f;
         private static void HealthComponent_TakeDamageProcess1(MonoMod.Cil.ILContext il)
         {
@@ -326,14 +328,14 @@ namespace Demolisher
             }
         }
 
-        public static float SoftnessHealOnHitPercentage = 5f;
-        public static float SoftnessHealOnKillPercentage = 25f;
-        public static float ChaosDamageCoefficient = 10f;
-        public static float ChaosProcCoefficient = 1f;
-        public static float ChaosRadius = 12f;
-        public static float ChaosForce = 300f;
-        public static float ChaosCooldown = 10f;
-        
+        public static float SoftnessHealOnHitPercentage => SoftnessConfig.SoftnessHealOnHitPercentage.Value;
+        public static float SoftnessHealOnKillPercentage => SoftnessConfig.SoftnessHealOnKillPercentage.Value;
+        public static float ChaosDamageCoefficient => ChaosConfig.ChaosDamageCoefficient.Value;
+        public static float ChaosProcCoefficient => ChaosConfig.ChaosProcCoefficient.Value;
+        public static float ChaosRadius => ChaosConfig.ChaosRadius.Value;
+        public static float ChaosForce => ChaosConfig.ChaosForce.Value;
+        public static float ChaosCooldown => ChaosConfig.ChaosCooldown.Value;
+
         private static void GlobalEventManager_onServerDamageDealt(DamageReport obj)
         {
             CharacterBody attackerBody = obj.attackerBody;
@@ -364,6 +366,12 @@ namespace Demolisher
                     };
                     blastAttack.Fire();
                     attackerBody.AddTimedBuff(Assets.ChaosCooldown, ChaosCooldown);
+                    EffectData effectData = new()
+                    {
+                        origin = blastAttack.position,
+                        scale = blastAttack.radius,
+                    };
+                    EffectManager.SpawnEffect(Assets.Explosion.prefab, effectData, true);
                 }
             }
         }

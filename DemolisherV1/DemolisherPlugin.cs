@@ -1,9 +1,11 @@
 ﻿
 using BepInEx;
 using BepInEx.Configuration;
+using BepInEx.Logging;
 using BrynzaAPI;
 using R2API;
 using R2API.Utils;
+using System.Collections.Generic;
 using System.Security;
 using System.Security.Permissions;
 using UnityEngine;
@@ -28,7 +30,7 @@ namespace Demolisher
     [NetworkCompatibility(CompatibilityLevel.EveryoneMustHaveMod, VersionStrictness.EveryoneNeedSameModVersion)]
     //[R2APISubmoduleDependency(nameof(CommandHelper))]
     [System.Serializable]
-    public class Main : BaseUnityPlugin
+    public class DemolisherPlugin : BaseUnityPlugin
     {
         public const string ModGuid = "com.brynzananas.demolisher";
         public const string ModName = "Demolisher";
@@ -37,11 +39,15 @@ namespace Demolisher
         public static bool emotesEnabled { get; private set; }
         public static bool riskOfOptionsEnabled { get; private set; }
         public static BepInEx.PluginInfo PInfo { get; private set; }
-        public static ConfigFile configFile;
+        public static ConfigFile configFile { get; private set; }
+        public static ManualLogSource Log {  get; private set; }
         public void Awake()
         {
             PInfo = Info;
+            //Config = new ConfigFile(Paths.BepInExConfigPath, true);
             configFile = Config;
+            //configFile.Reload();
+            Log = Logger;
             emotesEnabled = BepInEx.Bootstrap.Chainloader.PluginInfos.ContainsKey(ModCompatabilities.EmoteCompatability.GUID);
             riskOfOptionsEnabled = BepInEx.Bootstrap.Chainloader.PluginInfos.ContainsKey(ModCompatabilities.RiskOfOptionsCompatability.GUID);
             Assets.Init();

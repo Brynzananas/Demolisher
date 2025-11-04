@@ -60,7 +60,7 @@ namespace Demolisher
         public static DemolisherBulletAttackWeaponDef SoftnessWeapon;
         public static DemolisherWeaponSkillDef Chaos;
         public static DemolisherBulletAttackWeaponDef ChaosWeapon;
-        public static SkillDef HellSupport;
+        public static PassiveItemSkillDef Boots;
         public static DemolisherWeaponSkillDef GrenadeLauncher;
         public static DemolisherProjectileWeaponDef GrenadeWeapon;
         public static DemolisherWeaponSkillDef BombLauncher;
@@ -94,6 +94,8 @@ namespace Demolisher
         public static BuffDef ChaosCooldown;
         public static BuffDef BombHit;
         public static BuffDef InstantMeleeSwing;
+        public static BuffDef IgnoreBoots;
+        public static ItemDef BootsPassive;
         public static DamageAPI.ModdedDamageType SharpnessDamageType = DamageAPI.ReserveDamageType();
         public static DamageAPI.ModdedDamageType SoftnessDamageType = DamageAPI.ReserveDamageType();
         public static DamageAPI.ModdedDamageType ChaosDamageType = DamageAPI.ReserveDamageType();
@@ -107,9 +109,9 @@ namespace Demolisher
         public static BodyIndex DemolisherBodyIndex;
         public static void Init()
         {
-            assetBundle = AssetBundle.LoadFromFileAsync(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Main.PInfo.Location), "assetbundles", "demolisherassets")).assetBundle;
+            assetBundle = AssetBundle.LoadFromFileAsync(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(global::Demolisher.DemolisherPlugin.PInfo.Location), "assetbundles", "demolisherassets")).assetBundle;
             //assetBundle2 = AssetBundle.LoadFromFileAsync(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Main.PInfo.Location), "assetbundles", "demolisherassets2")).assetBundle;
-            SoundAPI.SoundBanks.Add(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Main.PInfo.Location), "soundbanks", "Demoman.bnk"));
+            SoundAPI.SoundBanks.Add(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(global::Demolisher.DemolisherPlugin.PInfo.Location), "soundbanks", "Demoman.bnk"));
             foreach (Material material in assetBundle.LoadAllAssets<Material>())
             {
                 if (!material.shader.name.StartsWith("StubbedRoR2"))
@@ -134,7 +136,7 @@ namespace Demolisher
             BuffPassengerWhileSeated buffPassengerWhileSeated = DemolisherElevator.GetComponent<BuffPassengerWhileSeated>();
             buffPassengerWhileSeated.buff = RoR2Content.Buffs.HiddenInvincibility;
             DemolisherEmote = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Character/DemolisherEmotes.prefab");
-            if (Main.emotesEnabled) ModCompatabilities.EmoteCompatability.Init();
+            if (global::Demolisher.DemolisherPlugin.emotesEnabled) ModCompatabilities.EmoteCompatability.Init();
             GenericSkill[] genericSkills = DemolisherBody.GetComponents<GenericSkill>();
             foreach (GenericSkill genericSkill in genericSkills)
             {
@@ -169,9 +171,7 @@ namespace Demolisher
                             {
                                 key = key.Replace("%", "/");
                             }
-                            Debug.LogWarning("Key: " + key);
                             Material material = Addressables.LoadAssetAsync<Material>(key).WaitForCompletion();
-                            Debug.LogWarning("Mat: " + material);
                             rendererInfo.defaultMaterial = material;
                         }
                     }
@@ -198,7 +198,7 @@ namespace Demolisher
             Sharpness = assetBundle.LoadAsset<DemolisherWeaponSkillDef>("Assets/Demolisher/SkillDefs/MeleeWeapon/DemolisherSharpness.asset").RegisterSkillDef();
             Softness = assetBundle.LoadAsset<DemolisherWeaponSkillDef>("Assets/Demolisher/SkillDefs/MeleeWeapon/DemolisherSoftness.asset").RegisterSkillDef();
             Chaos = assetBundle.LoadAsset<DemolisherWeaponSkillDef>("Assets/Demolisher/SkillDefs/MeleeWeapon/DemolisherChaos.asset").RegisterSkillDef();
-            HellSupport = assetBundle.LoadAsset<SkillDef>("Assets/Demolisher/SkillDefs/Passive/DemolisherHellSupport.asset").RegisterSkillDef();
+            Boots = assetBundle.LoadAsset<PassiveItemSkillDef>("Assets/Demolisher/SkillDefs/Passive/DemolisherHellSupport.asset").RegisterSkillDef();
             GrenadeLauncher = assetBundle.LoadAsset<DemolisherWeaponSkillDef>("Assets/Demolisher/SkillDefs/RangedSecondary/DemolisherGrenadeLauncher.asset").RegisterSkillDef();
             GrenadeLauncher.ModifySkill("Play_grenade_launcher_worldreload", GrenadeLauncher.baseMaxStock);
             BombLauncher = assetBundle.LoadAsset<DemolisherWeaponSkillDef>("Assets/Demolisher/SkillDefs/RangedSecondary/DemolisherBombLauncher.asset").RegisterSkillDef();
@@ -230,6 +230,8 @@ namespace Demolisher
             ChaosCooldown = assetBundle.LoadAsset<BuffDef>("Assets/Demolisher/Buffs/ChaosCooldown.asset").RegisterBuffDef();
             BombHit = assetBundle.LoadAsset<BuffDef>("Assets/Demolisher/Buffs/BombHit.asset").RegisterBuffDef();
             InstantMeleeSwing = assetBundle.LoadAsset<BuffDef>("Assets/Demolisher/Buffs/InstantMeleeSwing.asset").RegisterBuffDef();
+            IgnoreBoots = assetBundle.LoadAsset<BuffDef>("Assets/Demolisher/Buffs/IgnoreBoots.asset").RegisterBuffDef();
+            BootsPassive = assetBundle.LoadAsset<ItemDef>("Assets/Demolisher/Items/BootsPassive.asset").RegisterItemDef();
             Default = assetBundle.LoadAsset<SkinDef>("Assets/Demolisher/Character/DemolisherDefault.asset");
             Nuclear = assetBundle.LoadAsset<SkinDef>("Assets/Demolisher/Character/DemolisherNuclear.asset");
             //TimestopPP = assetBundle2.LoadAsset<PostProcessProfile>("Assets/Demolisher/DemolisherTimestopPP.asset");
@@ -266,8 +268,8 @@ namespace Demolisher
             typeof(FireGrenade).RegisterEntityState();
             typeof(FireGrenadeHold).RegisterEntityState();
             typeof(FireGrenadeAndHold).RegisterEntityState();
-            typeof(FireGrenadeNetwork).RegisterEntityState();
-            typeof(FireGrenadeHoldNetwork).RegisterEntityState();
+            //typeof(FireGrenadeNetwork).RegisterEntityState();
+            //typeof(FireGrenadeHoldNetwork).RegisterEntityState();
             typeof(MediumMeleeAttack).RegisterEntityState();
             typeof(ShieldCharge).RegisterEntityState();
             typeof(Detonate).RegisterEntityState();
