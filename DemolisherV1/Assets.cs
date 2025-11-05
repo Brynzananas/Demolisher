@@ -37,6 +37,9 @@ namespace Demolisher
         public static GameObject PillarExplosionEffect;
         public static GameObject LaserEffect;
         public static GameObject IamRedAsFuck;
+        public static GameObject Crosshair;
+        public static Sprite CrosshairRangedSprite;
+        public static Sprite CrosshairMeleeSprite;
         public static EffectDef DemolisherTracer;
         public static EffectDef CollapseExplosion;
         public static EffectDef ChainsExplosion;
@@ -249,6 +252,9 @@ namespace Demolisher
             PillarExplosionEffect = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Effects/DemolisherPillarExplosion.prefab");
             LaserEffect = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Effects/DemolisherLaser.prefab");
             IamRedAsFuck = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Effects/IAmRedAsFuck.prefab");
+            Crosshair = assetBundle.LoadAsset<GameObject>("Assets/Demoman/DemoExtraCrosshairReworkSimplified.prefab");
+            CrosshairMeleeSprite = assetBundle.LoadAsset<Sprite>("Assets/Demoman/UI/DemoSwordIndicatorThinHalf2.png");
+            CrosshairRangedSprite = assetBundle.LoadAsset<Sprite>("Assets/Demoman/UI/DemoStickyIndicatorThinHalf2.png");
             SharpnessWeapon = Sharpness.RegisterWeapon<DemolisherWeaponSkillDef, DemolisherBulletAttackWeaponDef>(null, null);
             SharpnessWeapon.moddedDamageTypes = [SharpnessDamageType];
             SoftnessWeapon = Softness.RegisterWeapon<DemolisherWeaponSkillDef, DemolisherBulletAttackWeaponDef>(null, null);
@@ -278,6 +284,17 @@ namespace Demolisher
             typeof(ChargeCollapse).RegisterEntityState();
             typeof(FireCollapse).RegisterEntityState();
             typeof(FireTallSword).RegisterEntityState();
+            typeof(PrepareGroundSword).RegisterEntityState();
+            typeof(GroundSlash).RegisterEntityState();
+            typeof(Slicing).RegisterEntityState();
+            typeof(Slam).RegisterEntityState();
+            typeof(SlamFire).RegisterEntityState();
+            typeof(ChainDash).RegisterEntityState();
+            typeof(Fly).RegisterEntityState();
+            typeof(Laser).RegisterEntityState();
+            typeof(Ascend).RegisterEntityState();
+            typeof(Arrived).RegisterEntityState();
+            typeof(Open).RegisterEntityState();
             ContentManager.collectContentPackProviders += (addContentPackProvider) => addContentPackProvider(new Content());
         }
         public static void AddLemurianProjectileGhost(GameObject projectile)

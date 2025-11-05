@@ -94,10 +94,10 @@ namespace Demolisher
     {
         public static void Init()
         {
-            damageCoefficient = CreateConfig(MediumMeleeAttackName, DamageCoefficientName, 4f, "");
+            damageCoefficient = CreateConfig(MediumMeleeAttackName, DamageCoefficientName, 3f, "");
             procCoefficient = CreateConfig(MediumMeleeAttackName, ProcCoefficientName, 1f, "");
             baseDuration = CreateConfig(MediumMeleeAttackName, DurationName, 0.2f, "");
-            baseAttackDuration = CreateConfig(MediumMeleeAttackName, AttackDurationName, 0.6f, "");
+            baseAttackDuration = CreateConfig(MediumMeleeAttackName, AttackDurationName, 0.3f, "");
             radius = CreateConfig(MediumMeleeAttackName, RadiusName, 3f, "");
             maxDistance = CreateConfig(MediumMeleeAttackName, RangeName, 9f, "");
             force = CreateConfig(MediumMeleeAttackName, ForceName, 500f, "");
@@ -114,7 +114,7 @@ namespace Demolisher
     {
         public static void Init()
         {
-            damageCoefficient = CreateConfig(FireGrenadeName, DamageCoefficientName, 4f, "");
+            damageCoefficient = CreateConfig(FireGrenadeName, DamageCoefficientName, 3f, "");
             baseDuration = CreateConfig(FireGrenadeName, DurationName, 0.5f, "");
             force = CreateConfig(FireGrenadeName, ForceName, 500f, "");
             maxCharge = CreateConfig(FireGrenadeName, MaxChargeName, 1f, "");
@@ -133,8 +133,8 @@ namespace Demolisher
             shieldBashDamageCoefficient = CreateConfig(ShieldChargeName, DamageCoefficientName, 2f, "");
             shieldBashSpeedDamageCoefficient = CreateConfig(ShieldChargeName, SpeedDamageCoefficientName, 1f, "");
             shieldBashProcCoefficient = CreateConfig(ShieldChargeName, ProcCoefficientName, 1f, "");
-            shieldBashRadiusMultiplier = CreateConfig(ShieldChargeName, RadiusName, 3f, "");
-            shieldBashDistance = CreateConfig(ShieldChargeName, RangeName, 3f, "");
+            shieldBashRadiusMultiplier = CreateConfig(ShieldChargeName, RadiusName, 4f, "");
+            shieldBashDistance = CreateConfig(ShieldChargeName, RangeName, 9f, "");
         }
         public static ConfigEntry<float> baseDuration;
         public static ConfigEntry<float> baseWalkSpeedMultiplier;
@@ -153,9 +153,9 @@ namespace Demolisher
         {
             damageCoefficient = CreateConfig(WhirlwindMeleeName, DamageCoefficientName, 2f, "");
             procCoefficient = CreateConfig(WhirlwindMeleeName, ProcCoefficientName, 1f, "");
-            maxDistance = CreateConfig(WhirlwindMeleeName, RangeName, 9f, "");
+            maxDistance = CreateConfig(WhirlwindMeleeName, RangeName, 6f, "");
             force = CreateConfig(WhirlwindMeleeName, ForceName, 300f, "");
-            radius = CreateConfig(WhirlwindMeleeName, RadiusName, 3f, "");
+            radius = CreateConfig(WhirlwindMeleeName, RadiusName, 9f, "");
             baseDegreesPerSecond = CreateConfig(WhirlwindMeleeName, MovementControlName, 90f, "");
             baseRotationsPerSecond = CreateConfig(WhirlwindMeleeName, "Rotations per Second", 5f, "");
         }

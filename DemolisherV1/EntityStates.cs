@@ -14,6 +14,7 @@ using RoR2.Skills;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Xml.Xsl;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -213,6 +214,7 @@ namespace Demolisher
                 trajectoryAimAssistMultiplier = 0f,
                 spreadYawScale = 0f,
                 spreadPitchScale = 0f,
+                stopperMask = LayerIndex.world.mask
             };
             bulletAttack.SetIgnoreHitTargets(true);
             object attack = bulletAttack;
@@ -395,7 +397,7 @@ namespace Demolisher
             }
         }
     }
-    public class FireGrenadeHold : BaseSkillState
+    public class FireGrenadeHold : DemolisherBaseState
     {
         public static float damageCoefficient => FireGrenadeConfig.damageCoefficient.Value;
         public static float force => FireGrenadeConfig.force.Value;
@@ -405,11 +407,17 @@ namespace Demolisher
         public override void FixedUpdate()
         {
             base.FixedUpdate();
-            charge += Time.fixedDeltaTime * characterBody.attackSpeed;
-            if (isAuthority && (!IsKeyDownAuthority() || charge >= maxCharge))
+            //charge += Time.fixedDeltaTime * characterBody.attackSpeed;
+            if (demolisherComponent) demolisherComponent.overrideGeneralMeter = 1f - (fixedAge / maxCharge);
+            if (isAuthority && (!IsKeyDownAuthority() || fixedAge >= maxCharge))
             {
-                outer.SetNextState(new FireGrenade{activatorSkillSlot = activatorSkillSlot, fuseNew = maxCharge - charge});
+                outer.SetNextState(new FireGrenade{activatorSkillSlot = activatorSkillSlot, fuseNew = maxCharge - fixedAge });
             }
+        }
+        public override void OnExit()
+        {
+            base.OnExit();
+            if (demolisherComponent) demolisherComponent.overrideGeneralMeter = 1f;
         }
         public override InterruptPriority GetMinimumInterruptPriority()
         {
@@ -465,6 +473,7 @@ namespace Demolisher
         public static float swingUpCrossfade = 0.05f;
         public static float swingDownCrossfade = 0.05f;
         public static float bufferEmptyTransition = 0.05f;
+        public static float effectRotation = 35f;
         public override DamageSource damageSource => GetDamageSource();
         public bool instantSwing;
         public bool step;
@@ -474,16 +483,20 @@ namespace Demolisher
         public GameObject slash;
         public bool firing;
         public float attackDuration;
+        public Transform effectTransform;
         public override void OnEnter()
         {
             base.OnEnter();
+            //ChildLocator childLocator = GetModelChildLocator();
+            //if (childLocator) effectTransform = childLocator.FindChild("Rotator");
+            //if (!effectTransform) effectTransform = characterBody.coreTransform;
             SetValues();
             CreateBulletAttack();
             PlayCrossfade("Gesture, Override", "SwingUp1", "Slash.playbackRate", duration, swingUpCrossfade);
         }
         public virtual void SetValues()
         {
-            float rampUp = Mathf.Min((fixedAge * attackSpeedRampUpRate) + 1f, maxAttackSpeedRampUp);
+            float rampUp = 1f; //Mathf.Min((fixedAge * attackSpeedRampUpRate) + 1f, maxAttackSpeedRampUp);
             attackDuration = baseAttackDuration / characterBody.attackSpeed / rampUp;
             duration = baseDuration / characterBody.attackSpeed / rampUp;
         }
@@ -529,7 +542,19 @@ namespace Demolisher
             firing = true;
             attackDuration = duration;
             UpdateBulletAttack(characterBody.damage * damageCoefficient, procCoefficient, force, RollCrit(), radius, maxDistance, true);
+            //Vector3 rotationEuler = Util.QuaternionSafeLookRotation(bulletAttack.aimVector).eulerAngles;
+            //rotationEuler = new Vector3(rotationEuler.x, rotationEuler.y, rotationEuler.z + (step ? effectRotation : 180f - effectRotation));
+            //EffectData effectData = new EffectData
+            //{
+            //    origin = bulletAttack.origin,
+            //    rootObject = characterBody.gameObject,
+            //    rotation = Quaternion.Euler(rotationEuler),
+            //    genericFloat = attackDuration
+            //};
+            //EffectManager.SpawnEffect(Assets.Slash.index, effectData, false);
             slash = GameObject.Instantiate(Assets.Slash);
+            DemolisherSlash demolisherSlash = slash.GetComponent<DemolisherSlash>();
+            demolisherSlash.Init(1f / duration);
             PlayCrossfade("Gesture, Override", step ? "SwingDown2" : "SwingDown1", "Slash.playbackRate", duration, swingDownCrossfade);
             Util.PlaySound("Play_DemoSwordSwing", gameObject);
             //slash.Init(45f, false, bulletAttack.radius, bulletAttack.maxDistance, duration * 2f);
@@ -578,11 +603,11 @@ namespace Demolisher
         //public static float shieldBashTimer = 1f;
         public static float shieldBashVelocityForceMultiplier = 1f;
         public static float shieldBashGravityForceMultiplier = 1f;
+        public static float extraGroundingDistance = 1f;
         public static LayerMask shieldBashLayerMask = LayerIndex.world.mask;
         public Animator modelAnimator;
         public CharacterAnimParamAvailability characterAnimParamAvailability;
         public float duration;
-        public float stopwatch;
         public float walkSpeedMultiplier;
         public Vector3 direction;
         public Vector3 directionVisual;
@@ -599,7 +624,6 @@ namespace Demolisher
         public override void FixedUpdate()
         {
             base.FixedUpdate();
-            stopwatch += Time.fixedDeltaTime;
             direction = GetAimRay().direction;
             direction.y = 0;
             direction = direction.normalized;
@@ -614,6 +638,7 @@ namespace Demolisher
                 velocity.y = rigidbody.velocity.y;
                 rigidbody.velocity = velocity;
             }
+            if (demolisherComponent) demolisherComponent.overrideMeleeUtilityMeter = 1f - (fixedAge / duration);
             //if (NetworkServer.active)
             ShieldBash();
             //int count = hitTargets.Count;
@@ -623,7 +648,7 @@ namespace Demolisher
             //    hitTarget.timer -= Time.fixedDeltaTime;
             //    if (hitTarget.characterBody == null || hitTarget.timer <= 0f) hitTargets.Remove(hitTarget);
             //}
-            if (stopwatch >= duration && isAuthority) outer.SetNextStateToMain();
+            if (fixedAge >= duration && isAuthority) outer.SetNextStateToMain();
         }
         public virtual void ShieldBash()
         {
@@ -699,7 +724,10 @@ namespace Demolisher
             if (characterMotor)
             {
                 characterMotor.walkSpeedPenaltyCoefficient *= walkSpeedMultiplier;
+                if (characterMotor.Motor) characterMotor.Motor.GroundDetectionExtraDistance += extraGroundingDistance;
             }
+            if (demolisherModel) demolisherModel.devilCount++;
+            PlayAnimation("Gesture, Override", "BufferEmpty");
             modelAnimator = GetModelAnimator();
             if (modelAnimator)
             {
@@ -737,12 +765,15 @@ namespace Demolisher
         public override void OnExit()
         {
             base.OnExit();
+            if (demolisherComponent) demolisherComponent.overrideMeleeUtilityMeter = -1f;
+            if (demolisherModel) demolisherModel.devilCount--;
             if (modelAnimator)
             {
                 modelAnimator.SetBool("isCharging", false);
             }
             if (characterMotor)
             {
+                if (characterMotor.Motor) characterMotor.Motor.GroundDetectionExtraDistance -= extraGroundingDistance;
                 float walkSpeed = characterMotor.walkSpeed;
                 characterMotor.walkSpeedPenaltyCoefficient /= walkSpeedMultiplier;
                 characterMotor.SetVelocityOverride(Vector3.zero);
@@ -808,7 +839,7 @@ namespace Demolisher
         public override void FixedUpdate()
         {
             base.FixedUpdate();
-            ContinueFireMeleeAttack(new Ray { direction = rotation, origin = characterBody.corePosition });
+            ContinueFireMeleeAttack(new Ray { direction = transform.up, origin = characterBody.footPosition });
             animator = GetModelAnimator();
             stopwatch += Time.fixedDeltaTime;
             if (stopwatch >= interval)
@@ -866,7 +897,7 @@ namespace Demolisher
             return InterruptPriority.PrioritySkill;
         }
     }
-    public class Parry : BaseSkillState
+    public class Parry : DemolisherBaseState
     {
         public static Dictionary<GameObject, List<Parry>> activeParries = new Dictionary<GameObject, List<Parry>>();
         public static float baseParryWindow => ParryConfig.baseParryWindow.Value;
@@ -891,6 +922,7 @@ namespace Demolisher
         public override void OnEnter()
         {
             base.OnEnter();
+            if (demolisherModel) demolisherModel.devilCount++;
             SetValues();
             PlayAnimation("Gesture, Override", "Parry", "Slash.playbackRate", parryWindow);
             if (activeParries.ContainsKey(gameObject))
@@ -921,7 +953,12 @@ namespace Demolisher
         public override void OnExit()
         {
             base.OnExit();
-            if (activeParries.ContainsKey(gameObject)) activeParries[gameObject].Remove(this);
+            if (demolisherModel) demolisherModel.devilCount--;
+            if (activeParries.ContainsKey(gameObject))
+            {
+                activeParries[gameObject].Remove(this);
+                if (activeParries[gameObject].Count <= 0) activeParries.Remove(gameObject);
+            }
         }
         public virtual void OnParry(DamageInfo damageInfo)
         {
@@ -1052,10 +1089,10 @@ namespace Demolisher
         public static float explosionForce => CollapseConfig.explosionForce.Value;
         public static float bulletRadius => CollapseConfig.bulletRadius.Value;
         public static float explosionRadius => CollapseConfig.explosionRadius.Value;
-        public static float fireANimationDuration = 0.5f;
-        public static float crossfade = 0.05f;
         public static float selfForce => CollapseConfig.selfForce.Value;
         public static float selfForceGrounded => CollapseConfig.selfForceGrounded.Value;
+        public static float fireAnimationDuration = 0.5f;
+        public static float crossfade = 0.05f;
         public override void OnEnter()
         {
             base.OnEnter();
@@ -1063,8 +1100,9 @@ namespace Demolisher
         }
         public void Fire()
         {
+            if (demolisherModel) demolisherModel.AddTimedDevilCount(fireAnimationDuration / attackSpeedStat);
             StartAimMode(2f, true);
-            PlayCrossfade("Gesture, Override", "FireChest", "Slash.playbackRate", fireANimationDuration / attackSpeedStat, crossfade);
+            PlayCrossfade("Gesture, Override", "FireChest", "Slash.playbackRate", fireAnimationDuration / attackSpeedStat, crossfade);
             Util.PlaySound("Play_tacky_grenadier_shoot_crit", gameObject);
             ChildLocator childLocator = modelLocator && modelLocator.modelTransform ? modelLocator.modelTransform.GetComponent<ChildLocator>() : null;
             if (childLocator)
@@ -1318,6 +1356,7 @@ namespace Demolisher
         }
         public void Fire(Ray ray, float damage, float force, bool crit)
         {
+            if (demolisherModel) demolisherModel.AddTimedDevilCount(0.25f / attackSpeedStat);
             PlayAnimation("Gesture, Override", "GroundSlashFire", "Slash.playbackRate", 0.5f / attackSpeedStat);
             if (base.isAuthority)
             {
@@ -1624,6 +1663,7 @@ namespace Demolisher
         public static float baseEndWindow => ChainDashConfig.baseEndWindow.Value;
         public static float speedMultiplier => ChainDashConfig.speedMultiplier.Value;
         public static float moveVectorSmoothTime => ChainDashConfig.moveVectorSmoothTime.Value;
+        public static float extraGroundingDistance = 1f;
         public static float baseEffectDuration = 0.1f;
         public static float effectScale = 1f;
         public float effectDuration;
@@ -1642,7 +1682,9 @@ namespace Demolisher
         public override void OnEnter()
         {
             base.OnEnter();
-            GetBodyAnimatorSmoothingParameters(out smoothingParameters);
+            //GetBodyAnimatorSmoothingParameters(out smoothingParameters);
+            if (characterMotor && characterMotor.Motor) characterMotor.Motor.GroundDetectionExtraDistance += extraGroundingDistance;
+            if (demolisherModel) demolisherModel.trailCount++;
             SetValues();
             wasKeyDown = true;
         }
@@ -1650,6 +1692,7 @@ namespace Demolisher
         {
             base.FixedUpdate();
             stopwatch += Time.fixedDeltaTime;
+            if (demolisherComponent) demolisherComponent.overrideMeleeUtilityMeter = 1f - stopwatch / startWindow;
             if (effectApplied)
             {
                 effectDuration -= Time.fixedDeltaTime;
@@ -1696,6 +1739,9 @@ namespace Demolisher
         public override void OnExit()
         {
             base.OnExit();
+            if (demolisherComponent) demolisherComponent.overrideMeleeUtilityMeter = -1f;
+            if (characterMotor && characterMotor.Motor) characterMotor.Motor.GroundDetectionExtraDistance -= extraGroundingDistance;
+            if (demolisherModel) demolisherModel.trailCount--;
             if (modelAnimator && !success)
             {
                 modelAnimator.SetBool("isStep", false);
@@ -1739,10 +1785,11 @@ namespace Demolisher
             modelAnimator = GetModelAnimator();
             if (modelAnimator)
             {
-                CharacterAnimatorWalkParamCalculator characterAnimatorWalkParamCalculator = new CharacterAnimatorWalkParamCalculator();
-                characterAnimatorWalkParamCalculator.Update(moveVector.normalized, ray.direction, smoothingParameters, stopwatch);
-                modelAnimator.SetFloat(AnimationParameters.forwardSpeed, characterAnimatorWalkParamCalculator.animatorWalkSpeed.x);
-                modelAnimator.SetFloat(AnimationParameters.rightSpeed, characterAnimatorWalkParamCalculator.animatorWalkSpeed.y);
+                Vector3 normalizedMoveVector = (inputBank ? inputBank.rawMoveData : transform.forward);//Quaternion.AngleAxis(modelAnimator.transform.eulerAngles.y, -modelAnimator.transform.up) * moveVector.normalized;
+                //CharacterAnimatorWalkParamCalculator characterAnimatorWalkParamCalculator = new CharacterAnimatorWalkParamCalculator();
+                //characterAnimatorWalkParamCalculator.Update(moveVector.normalized, ray.direction, smoothingParameters, stopwatch);
+                modelAnimator.SetFloat(AnimationParameters.forwardSpeed, normalizedMoveVector.y);
+                modelAnimator.SetFloat(AnimationParameters.rightSpeed, normalizedMoveVector.x);
                 modelAnimator.SetFloat(AnimationParameters.upSpeed, 0f);
                 //modelAnimator.SetFloat("aimPitchCycle", 0f);
                 //modelAnimator.SetFloat("aimYawCycle", 0f);

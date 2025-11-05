@@ -391,11 +391,13 @@ namespace Demolisher
             if (damageInfo.attacker && Parry.activeParries.ContainsKey(self.gameObject))
             {
                 List<Parry> parries = Parry.activeParries[self.gameObject];
+                bool canParry = false;
                 foreach (Parry parry in parries)
                 {
                     parry.OnParry(damageInfo);
+                    canParry = true;
                 }
-                return;
+                if (canParry) return;
             }
             orig(self, damageInfo);
         }

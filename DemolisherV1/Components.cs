@@ -6,6 +6,7 @@ using R2API;
 using R2API.Networking.Interfaces;
 using Rewired;
 using RoR2;
+using RoR2.HudOverlay;
 using RoR2.Projectile;
 using RoR2.Skills;
 using RoR2.UI;
@@ -14,6 +15,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.Networking;
@@ -45,6 +47,7 @@ namespace Demolisher
     public class DemolisherComponent : MonoBehaviour
     {
         public static float swapSpeed = 0.1f;
+        public static float extraCrosshairScale = 1.5f;
         public float test;
         public CharacterBody characterBody;
         public ModelLocator modelLocator;
@@ -71,8 +74,13 @@ namespace Demolisher
         [HideInInspector] public ChildLocator childLocator;
         [HideInInspector] public Animator animator;
         [HideInInspector] public int rangedLayerIndex = -1;
+        [HideInInspector] public float overrideGeneralMeter = 1f;
+        [HideInInspector] public float overrideMeleeUtilityMeter = -1f;
+        public Action<DemolisherComponent> onSwapped;
         private bool swapping;
         private float swappingVelocity;
+        private OverlayController overlayController;
+
         public bool isSwapped
         {
             get
@@ -105,6 +113,49 @@ namespace Demolisher
                 holsterUtility = rangedUtility;
                 holsterSpecial = rangedSpecial;
                 if (demolisherModel) demolisherModel.gunInvisibilityCount++;
+            }
+            holsterPrimary?.LinkSkill(skillLocator.primary);
+            holsterSecondary?.LinkSkill(skillLocator.secondary);
+            holsterUtility?.LinkSkill(skillLocator.utility);
+            holsterSpecial?.LinkSkill(skillLocator.special);
+        }
+        public void OnEnable()
+        {
+            OverlayCreationParams overlayCreationParams = new OverlayCreationParams
+            {
+                prefab = Assets.Crosshair,
+                childLocatorEntry = "CrosshairExtras"
+            };
+            overlayController = HudOverlayManager.AddOverlay(gameObject, overlayCreationParams);
+            overlayController.onInstanceAdded += OnOverlayInstanceAdded;
+            overlayController.onInstanceRemove += OnOverlayInstanceRemoved;
+        }
+        public void OnDisable()
+        {
+            HudOverlayManager.RemoveOverlay(overlayController);
+            overlayController = null;
+        }
+        private void OnOverlayInstanceRemoved(OverlayController controller, GameObject @object)
+        {
+        }
+
+        private void OnOverlayInstanceAdded(OverlayController controller, GameObject @object)
+        {
+            (@object.transform as RectTransform).localScale = new Vector3(-extraCrosshairScale, extraCrosshairScale, 1f);
+            DemolisherCrosshair demolisherCrosshair = @object.GetComponent<DemolisherCrosshair>();
+            HudElement hudElement = @object.GetComponent<HudElement>();
+            hudElement.targetBodyObject = gameObject;
+            demolisherCrosshair.demolisherComponent = this;
+            onSwapped += ChangeCrosshairImages;
+            ChangeCrosshairImages(this);
+            void ChangeCrosshairImages(DemolisherComponent demolisherComponent)
+            {
+                bool isSwapped = this.isSwapped;
+                Sprite sprite = isSwapped ? Assets.CrosshairRangedSprite : Assets.CrosshairMeleeSprite;
+                demolisherCrosshair.generalMeter.sprite = sprite;
+                demolisherCrosshair.generalMeterBase.sprite = sprite;
+                demolisherCrosshair.meleeUtilityMeter.sprite = sprite;
+                demolisherCrosshair.meleeUtilityMeterBase.sprite = sprite;
             }
         }
         public void SwapWeapons()
@@ -157,6 +208,11 @@ namespace Demolisher
                 EntityState.PlayAnimationOnAnimator(animator, "Gesture, Override", "MeleeToRanged", "Slash.playbackRate", 1f / characterBody.attackSpeed);
                 Util.PlaySound("Play_grenade_launcher_worldreload", gameObject);
             }
+            holsterPrimary?.LinkSkill(skillLocator.primary);
+            holsterSecondary?.LinkSkill(skillLocator.secondary);
+            holsterUtility?.LinkSkill(skillLocator.utility);
+            holsterSpecial?.LinkSkill(skillLocator.special);
+            onSwapped?.Invoke(this);
         }
         public void ToggleWeapon(string name, bool toggle)
         {
@@ -553,15 +609,19 @@ namespace Demolisher
     {
         public EffectComponent effectComponent;
         public ParticleSystem[] swipeParticles;
-        public void Start()
+        public void Init(float speed)
         {
-            if (!effectComponent || effectComponent.effectData == null) return;
-            float speed = 1f / effectComponent.effectData.genericFloat;
-            foreach (ParticleSystem particleSystem in swipeParticles)
-            {
-                particleSystem.playbackSpeed = speed;
-            }
+            foreach (ParticleSystem particleSystem in swipeParticles) particleSystem.playbackSpeed = speed;
         }
+        //public void Start()
+        //{
+        //    if (!effectComponent || effectComponent.effectData == null) return;
+        //    float speed = 1f / effectComponent.effectData.genericFloat;
+        //    foreach (ParticleSystem particleSystem in swipeParticles)
+        //    {
+        //        particleSystem.playbackSpeed = speed;
+        //    }
+        //}
     }
     [RequireComponent(typeof(ProjectileController))]
     [RequireComponent(typeof(ProjectileStickOnImpact))]
@@ -1012,9 +1072,9 @@ namespace Demolisher
                     devilCountApplied = true;
                     foreach (GameObject devilObject in devilObjects) devilObject.SetActive(true);
                     foreach (GameObject nonDevilObject in nonDevilObjects) nonDevilObject.SetActive(false);
-                    if (devilMaterial)
+                    if (devilMaterial && !temporaryOverlay)
                     {
-                        if (temporaryOverlay) Destroy(temporaryOverlay);
+                        //if (temporaryOverlay) Destroy(temporaryOverlay);
                         temporaryOverlay = gameObject.AddComponent<TemporaryOverlay>();
                         temporaryOverlay.alphaCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
                         temporaryOverlay.inspectorCharacterModel = this;
@@ -1039,7 +1099,7 @@ namespace Demolisher
             get => _trailCount;
             set
             {
-                _devilCount = value;
+                _trailCount = value;
                 if (value > 0)
                 {
                     if (trailCountApplied) return;
@@ -1054,8 +1114,29 @@ namespace Demolisher
                 }
             }
         }
+        public List<float> timedDevilCounts = [];
         public void DevilUp(AnimationEvent animationEvent) => devilCount++;
         public void DevilDown(AnimationEvent animationEvent) => devilCount--;
+        public void AddTimedDevilCount(float time)
+        {
+            timedDevilCounts.Add(time);
+            devilCount++;
+        }
+        public void Update()
+        {
+            for (int i = 0; i < timedDevilCounts.Count; i++)
+            {
+                float time = timedDevilCounts[i];
+                time -= Time.deltaTime;
+                if (time <= 0f)
+                {
+                    devilCount--;
+                    timedDevilCounts.RemoveAt(i);
+                    continue;
+                }
+                timedDevilCounts[i] = time;
+            }
+        }
     }
     public class DemolisherModelLocator : ModelLocator
     {
@@ -1221,8 +1302,8 @@ namespace Demolisher
         public static float phase4EffectScale = 3f;
         public static float pillarEffectScale = 2f;
         public static float uiAlphaDownSmoothTime = 0.25f;
-        public static float uiAlphaDownAlpha = 0.45f;
-        public static float red = 0.1f;
+        public static float uiAlphaDownAlpha = 0.75f;
+        public static float red = 0.05f;
         public static float redSmoothTime = 0.25f;
         private float uiAlphaDownVelocity;
         private float redVelocity;
@@ -1269,6 +1350,7 @@ namespace Demolisher
             if (cross) cross.gameObject.SetActive(false);
             if (demolisherModel) demolisherModel.devilCount++;
             Transform effect = childLocator.FindChild("Phase3Effect");
+            Transform pillarEffect = childLocator.FindChild("PillarEffect");
             if (effect)
             {
                 EffectData effectData = new EffectData
@@ -1277,7 +1359,10 @@ namespace Demolisher
                     scale = phase3EffectScale,
                 };
                 EffectManager.SpawnEffect(Assets.ChainsExplosion.prefab, effectData, false);
-                pillar = Instantiate(Assets.PillarEffect, effect);
+            }
+            if (pillarEffect)
+            {
+                pillar = Instantiate(Assets.PillarEffect, pillarEffect);
                 pillar.transform.localScale = new Vector3(pillarEffectScale, pillarEffectScale, pillarEffectScale);
             }
             uiAlphaDown = true;
@@ -1399,6 +1484,87 @@ namespace Demolisher
         public float scale;
         public bool lossy;
         private EffectManagerHelper efh;
+    }
+    public class RotateToInputDirection : MonoBehaviour
+    {
+        public InputBankTest inputBankTest;
+        public void OnEnable()
+        {
+            if (!transform.parent) return;
+            inputBankTest = transform.parent.GetComponent<InputBankTest>();
+        }
+        public void LateUpdate()
+        {
+            if (!inputBankTest) return;
+            transform.forward = inputBankTest.aimDirection;
+            transform.position = inputBankTest.aimOrigin;
+        }
+    }
+    public class DemolisherCrosshair : MonoBehaviour
+    {
+        public DemolisherComponent demolisherComponent;
+        public Image generalMeter;
+        public Image generalMeterBase;
+        public Image meleeUtilityMeter;
+        public Image meleeUtilityMeterBase;
+        public TextMeshProUGUI rangedPrimaryCounter;
+        public Image rangedPrimaryMeter;
+        public TextMeshProUGUI rangedSecondaryCounter;
+        public Image rangedSecondaryMeter;
+        public void Awake()
+        {
+
+        }
+        public void Update()
+        {
+            if (demolisherComponent)
+            {
+                if (meleeUtilityMeter)
+                if (demolisherComponent.overrideMeleeUtilityMeter < 0f)
+                {
+                    if (demolisherComponent.meleeUtility)
+                    {
+                        meleeUtilityMeter.fillAmount = demolisherComponent.meleeUtility.stock < demolisherComponent.meleeUtility.maxStock ? demolisherComponent.meleeUtility.rechargeStopwatch / demolisherComponent.meleeUtility.finalRechargeInterval : 1f;
+                    }
+                    else
+                    {
+                        meleeUtilityMeter.fillAmount = 1f;
+                    }
+                }
+                else
+                {
+                    meleeUtilityMeter.fillAmount = demolisherComponent.overrideMeleeUtilityMeter;
+                }
+                if (generalMeter) generalMeter.fillAmount = demolisherComponent.overrideGeneralMeter;
+                if (demolisherComponent.rangedPrimary)
+                {
+                    if (rangedPrimaryMeter) rangedPrimaryCounter.text = demolisherComponent.rangedPrimary.stock.ToString();
+                    if (rangedPrimaryMeter) rangedPrimaryMeter.fillAmount = demolisherComponent.rangedPrimary.stock < demolisherComponent.rangedPrimary.maxStock ? demolisherComponent.rangedPrimary.rechargeStopwatch / demolisherComponent.rangedPrimary.finalRechargeInterval : 1f;
+                }
+                else
+                {
+                    if (rangedPrimaryMeter) rangedPrimaryMeter.fillAmount = 1f;
+                }
+                if (demolisherComponent.rangedSecondary)
+                {
+                    if (rangedSecondaryCounter) rangedSecondaryCounter.text = demolisherComponent.rangedSecondary.stock.ToString();
+                    if (rangedSecondaryMeter) rangedSecondaryMeter.fillAmount = demolisherComponent.rangedSecondary.stock < demolisherComponent.rangedSecondary.maxStock ? demolisherComponent.rangedSecondary.rechargeStopwatch / demolisherComponent.rangedSecondary.finalRechargeInterval : 1f;
+                }
+                else
+                {
+                    if (rangedSecondaryMeter) rangedSecondaryMeter.fillAmount = 1f;
+                }
+            }
+            else
+            {
+                generalMeter.fillAmount = 1f;
+                meleeUtilityMeter.fillAmount = 1f;
+                rangedSecondaryCounter.gameObject.SetActive(false);
+                rangedPrimaryMeter.gameObject.SetActive(false);
+                rangedSecondaryMeter.gameObject.SetActive(false);
+                rangedPrimaryCounter.gameObject.SetActive(false);
+            }
+        }
     }
     public abstract class DemolisherWeaponDef : ScriptableObject
     {
