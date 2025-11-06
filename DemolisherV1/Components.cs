@@ -114,10 +114,10 @@ namespace Demolisher
                 holsterSpecial = rangedSpecial;
                 if (demolisherModel) demolisherModel.gunInvisibilityCount++;
             }
-            holsterPrimary?.LinkSkill(skillLocator.primary);
-            holsterSecondary?.LinkSkill(skillLocator.secondary);
-            holsterUtility?.LinkSkill(skillLocator.utility);
-            holsterSpecial?.LinkSkill(skillLocator.special);
+            //holsterPrimary?.LinkSkill(skillLocator.primary);
+            //holsterSecondary?.LinkSkill(skillLocator.secondary);
+            //holsterUtility?.LinkSkill(skillLocator.utility);
+            //holsterSpecial?.LinkSkill(skillLocator.special);
         }
         public void OnEnable()
         {
@@ -208,10 +208,10 @@ namespace Demolisher
                 EntityState.PlayAnimationOnAnimator(animator, "Gesture, Override", "MeleeToRanged", "Slash.playbackRate", 1f / characterBody.attackSpeed);
                 Util.PlaySound("Play_grenade_launcher_worldreload", gameObject);
             }
-            holsterPrimary?.LinkSkill(skillLocator.primary);
-            holsterSecondary?.LinkSkill(skillLocator.secondary);
-            holsterUtility?.LinkSkill(skillLocator.utility);
-            holsterSpecial?.LinkSkill(skillLocator.special);
+            //holsterPrimary?.LinkSkill(skillLocator.primary);
+            //holsterSecondary?.LinkSkill(skillLocator.secondary);
+            //holsterUtility?.LinkSkill(skillLocator.utility);
+            //holsterSpecial?.LinkSkill(skillLocator.special);
             onSwapped?.Invoke(this);
         }
         public void ToggleWeapon(string name, bool toggle)

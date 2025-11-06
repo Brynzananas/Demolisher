@@ -19,7 +19,7 @@ using static R2API.DotAPI;
 
 namespace Demolisher
 {
-    public class Keywords
+    public static class Keywords
     {
         public const string SharpnessName = "Sharpness";
         public const string SoftnessName = "Softness";

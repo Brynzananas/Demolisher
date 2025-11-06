@@ -136,10 +136,7 @@ namespace Demolisher
             base.OnEnter();
             demolisherComponent = gameObject.GetComponent<DemolisherComponent>();
             demolisherModelLocator = characterBody.modelLocator ? characterBody.modelLocator as DemolisherModelLocator : null;
-            if (characterBody.modelLocator && characterBody.modelLocator.modelTransform)
-            {
-                demolisherModel = characterBody.modelLocator.modelTransform.GetComponent<DemolisherModel>();
-            }
+            if (characterBody.modelLocator && characterBody.modelLocator.modelTransform)  demolisherModel = characterBody.modelLocator.modelTransform.GetComponent<DemolisherModel>();
             AssignWeapons();
         }
         public virtual void AssignWeapons()
@@ -214,7 +211,7 @@ namespace Demolisher
                 trajectoryAimAssistMultiplier = 0f,
                 spreadYawScale = 0f,
                 spreadPitchScale = 0f,
-                stopperMask = LayerIndex.world.mask
+                stopperMask = -1
             };
             bulletAttack.SetIgnoreHitTargets(true);
             object attack = bulletAttack;
@@ -618,8 +615,8 @@ namespace Demolisher
 
         public virtual void SetValues()
         {
-            duration = baseDuration / characterBody.attackSpeed;
-            walkSpeedMultiplier = baseWalkSpeedMultiplier * characterBody.attackSpeed;
+            duration = baseDuration;
+            walkSpeedMultiplier = baseWalkSpeedMultiplier;
         }
         public override void FixedUpdate()
         {
@@ -661,6 +658,7 @@ namespace Demolisher
             {
                 velocity = rigidbody.velocity;
             }
+            velocity.y = 0f;
             Vector3 force = velocity * shieldBashVelocityForceMultiplier + (Physics.gravity * -1f * shieldBashGravityForceMultiplier);
             bulletAttack.SetBonusForce(force);
             UpdateBulletAttack(characterBody.damage * shieldBashDamageCoefficient, shieldBashProcCoefficient, 0f, RollCrit(), shieldBashRadiusMultiplier, shieldBashDistance, false);
@@ -840,7 +838,6 @@ namespace Demolisher
         {
             base.FixedUpdate();
             ContinueFireMeleeAttack(new Ray { direction = transform.up, origin = characterBody.footPosition });
-            animator = GetModelAnimator();
             stopwatch += Time.fixedDeltaTime;
             if (stopwatch >= interval)
             {
@@ -854,7 +851,6 @@ namespace Demolisher
                 Util.PlaySound("Play_DemoSwordSwing", gameObject);
                 if (activatorSkillSlot) activatorSkillSlot.stock--;
             }
-            if (animator) animator.SetBool("isSpinning", true);
             direction = Vector3.RotateTowards(direction, inputBank ? inputBank.moveVector : aimDirectionGrounded, degreesPerSecond / 57f * Time.fixedDeltaTime, 0f);
             rotation = Quaternion.AngleAxis(rotationsPerSecond * 360f * Time.fixedDeltaTime, Vector3.up) * rotation;
             if (characterDirection)
@@ -882,6 +878,8 @@ namespace Demolisher
             base.OnEnter();
             direction = inputBank ? inputBank.moveVector : aimDirectionGrounded;
             rotation = direction;
+            animator = GetModelAnimator();
+            if (animator) animator.SetBool("isSpinning", true);
             SetValues();
             Util.PlaySound("Play_DemoSwordSwing", gameObject);
             CreateBulletAttack();

@@ -159,6 +159,7 @@ namespace Demolisher
                     }
                 }
             }
+            Language.Init();
         }
 
         public static SkillIcon altPrimary;

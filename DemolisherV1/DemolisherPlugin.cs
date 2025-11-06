@@ -23,6 +23,7 @@ namespace Demolisher
     [BepInDependency(R2API.SkillsAPI.PluginGUID, SkillsAPI.PluginVersion)]
     [BepInDependency(R2API.Skins.PluginGUID, Skins.PluginVersion)]
     [BepInDependency(R2API.SoundAPI.PluginGUID, SoundAPI.PluginVersion)]
+    [BepInDependency(R2API.DamageAPI.PluginGUID, DamageAPI.PluginVersion)]
     [BepInDependency(R2API.Networking.NetworkingAPI.PluginGUID)]
     [BepInDependency(BrynzaAPI.BrynzaAPI.ModGuid, BepInDependency.DependencyFlags.HardDependency)]
     //[BepInDependency(EmoteCompatAbility.customEmotesApiGUID, BepInDependency.DependencyFlags.SoftDependency)]
