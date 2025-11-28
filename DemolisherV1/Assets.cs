@@ -39,6 +39,7 @@ namespace Demolisher
         public static GameObject LaserEffect;
         public static GameObject IamRedAsFuck;
         public static GameObject Crosshair;
+        public static GameObject Aura;
         public static Sprite CrosshairRangedSprite;
         public static Sprite CrosshairMeleeSprite;
         public static EffectDef DemolisherTracer;
@@ -49,15 +50,18 @@ namespace Demolisher
         public static EffectDef DoubleDonk;
         public static EffectDef Rings;
         public static EffectDef Trail;
+        public static EffectDef WhirlwindEffect;
         public static GameObject LemurianFireBallGhost;
         public static GameObject GrenadeProjectile;
         public static GameObject StickyProjectile;
         public static GameObject HookProjectile;
         public static GameObject SwordPillarProjectile;
         public static GameObject DemolisherProjectile;
+        public static GameObject BombProjectile;
         public static SteppedSkillDef MediumMelee;
         public static SkillDef ShieldBash;
         public static SkillDef ChainDash;
+        public static UnlockableDef ChainDashUnlock;
         public static DemolisherWeaponSkillDef Sharpness;
         public static DemolisherBulletAttackWeaponDef SharpnessWeapon;
         public static DemolisherWeaponSkillDef Softness;
@@ -70,6 +74,7 @@ namespace Demolisher
         public static DemolisherWeaponSkillDef BombLauncher;
         public static DemolisherProjectileWeaponDef BombWeapon;
         public static DemolisherWeaponSkillDef HookLauncher;
+        public static UnlockableDef HookLauncherUnlock;
         public static DemolisherProjectileWeaponDef HookWeapon;
         public static DemolisherWeaponSkillDef StickyLauncher;
         public static DemolisherProjectileWeaponDef StickyWeapon;
@@ -80,8 +85,11 @@ namespace Demolisher
         public static SkillDef Detonate;
         public static SkillDef Whirlwind;
         public static SkillDef Slicing;
+        public static UnlockableDef SlicingUnlock;
         public static SkillDef Collapse;
+        public static UnlockableDef CollapseUnlock;
         public static SkillDef Fly;
+        public static UnlockableDef FlyUnlock;
         public static SkillDef Laser;
         public static SkillFamily Passive;
         public static SkillFamily MeleeWeapon;
@@ -93,6 +101,8 @@ namespace Demolisher
         public static SkillFamily RangedSecondary;
         public static SkillFamily RangedUtility;
         public static SkillFamily RangedSpecial;
+        public static UnlockableDef MasteryUnlock;
+        public static UnlockableDef GrandMasteryUnlock;
         public static SkinDef Default;
         public static SkinDef Nuclear;
         public static BuffDef SharpnessCooldown;
@@ -116,20 +126,26 @@ namespace Demolisher
         public static void Init()
         {
             assetBundle = AssetBundle.LoadFromFileAsync(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(global::Demolisher.DemolisherPlugin.PInfo.Location), "assetbundles", "demolisherassets")).assetBundle;
-            //assetBundle2 = AssetBundle.LoadFromFileAsync(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Main.PInfo.Location), "assetbundles", "demolisherassets2")).assetBundle;
             SoundAPI.SoundBanks.Add(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(global::Demolisher.DemolisherPlugin.PInfo.Location), "soundbanks", "Demoman.bnk"));
             foreach (Material material in assetBundle.LoadAllAssets<Material>())
             {
+                if (material.name == "matTrapOntop")
+                {
+                    Shader shader = Addressables.LoadAssetAsync<Material>("RoR2/DLC2/Chef/matChef_AlwaysOnTop.mat").WaitForCompletion().shader;
+                    material.shader = shader;
+                    material.renderQueue = 4000;
+                    continue;
+                }
                 if (!material.shader.name.StartsWith("StubbedRoR2"))
                 {
                     continue;
                 }
-
                 string shaderName = material.shader.name.Replace("StubbedRoR2", "RoR2") + ".shader";
                 Shader replacementShader = Addressables.LoadAssetAsync<Shader>(shaderName).WaitForCompletion();
                 if (replacementShader)
                 {
                     material.shader = replacementShader;
+                    if (material.name == "DemoProjectile") material.renderQueue = 4001;
                 }
             }
             foreach (VoicelineDef voicelineDef in assetBundle.LoadAllAssets<VoicelineDef>())
@@ -139,25 +155,30 @@ namespace Demolisher
             DemolisherBody = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Character/DemolisherBody.prefab").RegisterCharacterBody();
             DemolisherMaster = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Character/DemolisherMonsterMaster.prefab").RegisterCharacterMaster();
             DemolisherElevator = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Elevator/DemolisherElevator.prefab").RegisterNetworkPrefab();
-            BuffPassengerWhileSeated buffPassengerWhileSeated = DemolisherElevator.GetComponent<BuffPassengerWhileSeated>();
-            buffPassengerWhileSeated.buff = RoR2Content.Buffs.HiddenInvincibility;
+            InstantiatePrefabBehavior instantiatePrefabBehavior = DemolisherElevator.GetComponent< InstantiatePrefabBehavior>();
+            instantiatePrefabBehavior.prefab = Addressables.LoadAssetAsync<GameObject>("RoR2/Base/QuestVolatileBattery/QuestVolatileBatteryWorldPickup.prefab").WaitForCompletion();
             DemolisherEmote = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Character/DemolisherEmotes.prefab");
-            if (global::Demolisher.DemolisherPlugin.emotesEnabled) ModCompatabilities.EmoteCompatability.Init();
+            if (DemolisherPlugin.emotesEnabled) ModCompatabilities.EmoteCompatability.Init();
             GenericSkill[] genericSkills = DemolisherBody.GetComponents<GenericSkill>();
             foreach (GenericSkill genericSkill in genericSkills)
             {
                 if (genericSkill.skillName.Contains("Melee")) genericSkill.SetSection("Melee");
                 if (genericSkill.skillName.Contains("Ranged")) genericSkill.SetSection("Ranged");
-                if (genericSkill.skillName.Contains("Primary")) genericSkill.SetLoadoutTitleTokenOverride("LOADOUT_SKILL_PRIMARY");
-                if (genericSkill.skillName.Contains("Secondary")) genericSkill.SetLoadoutTitleTokenOverride("LOADOUT_SKILL_SECONDARY");
-                if (genericSkill.skillName.Contains("Utility")) genericSkill.SetLoadoutTitleTokenOverride("LOADOUT_SKILL_UTILITY");
-                if (genericSkill.skillName.Contains("Special")) genericSkill.SetLoadoutTitleTokenOverride("LOADOUT_SKILL_SPECIAL");
+                if (genericSkill.skillName.Contains("Weapon")) genericSkill.loadoutTitleToken = "DEMOLISHER_SKILL_WEAPON";
+                if (genericSkill.skillName.Contains("Primary")) genericSkill.loadoutTitleToken = "LOADOUT_SKILL_PRIMARY";
+                if (genericSkill.skillName.Contains("Secondary")) genericSkill.loadoutTitleToken = "LOADOUT_SKILL_SECONDARY";
+                if (genericSkill.skillName.Contains("Utility")) genericSkill.loadoutTitleToken = "LOADOUT_SKILL_UTILITY";
+                if (genericSkill.skillName.Contains("Special")) genericSkill.loadoutTitleToken = "LOADOUT_SKILL_SPECIAL";
+                if (genericSkill.skillName.Contains("Passive")) genericSkill.loadoutTitleToken = "LOADOUT_SKILL_PASSIVE";
             }
             CameraTargetParams cameraTargetParams = DemolisherBody.GetComponent<CameraTargetParams>();
             cameraTargetParams.cameraParams = Addressables.LoadAssetAsync<CharacterCameraParams>("RoR2/Base/Common/ccpStandard.asset").WaitForCompletion();
             DemolisherCharacterBody = DemolisherBody.GetComponent<CharacterBody>();
             DemolisherCharacterBody.preferredPodPrefab = DemolisherElevator; //LegacyResourcesAPI.Load<GameObject>("Prefabs/NetworkedObjects/SurvivorPod");//Addressables.LoadAssetAsync<GameObject>("RoR2/Base/SurvivorPod/SurvivorPod.prefab").WaitForCompletion();
             DemolisherCharacterBody._defaultCrosshairPrefab = LegacyResourcesAPI.Load<GameObject>("Prefabs/Crosshair/SimpleDotCrosshair");// Addressables.LoadAssetAsync<GameObject>("RoR2/Base/UI/StandardCrosshair.prefab").WaitForCompletion();
+            CharacterMotor characterMotor = DemolisherCharacterBody.GetComponent<CharacterMotor>();
+            //characterMotor.SetAirControlFromVelocityAdd(15f);
+            //DemolisherCharacterBody.vehicleIdleStateMachine = Array.Empty<EntityStateMachine>();
             GameObject gameObject = DemolisherBody.GetComponent<ModelLocator>().modelTransform.gameObject;
             gameObject.GetComponent<FootstepHandler>().footstepDustPrefab = LegacyResourcesAPI.Load<GameObject>("Prefabs/GenericFootstepDust");//Addressables.LoadAssetAsync<GameObject>("RoR2/Base/Common/VFX/GenericFootstepDust.prefab").WaitForCompletion();
             ModelSkinController modelSkinController = gameObject.GetComponent<ModelSkinController>();
@@ -170,7 +191,7 @@ namespace Demolisher
                     {
                         ref CharacterModel.RendererInfo rendererInfo = ref skinDefParams.rendererInfos[i];
                         if (rendererInfo.renderer.name.Contains("Devil")) rendererInfo.SetDontFadeWhenNearCamera(true);
-                        if (rendererInfo.defaultMaterial.name.Contains("Addressable"))
+                        if (rendererInfo.defaultMaterial && rendererInfo.defaultMaterial.name.Contains("Addressable"))
                         {
                             string key = rendererInfo.defaultMaterial.name.Replace("Addressable", "") + ".mat";
                             while (key.Contains("%"))
@@ -192,11 +213,13 @@ namespace Demolisher
             Rings = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Effects/DemolisherRings.prefab").RegisterEffect();
             Trail = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Effects/DemolisherTrailEffect.prefab").RegisterEffect();
             DemolisherTracer = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Effects/DemolisherTracer.prefab").RegisterEffect();
-            GrenadeProjectile = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Projectiles/GrenadeProjectile.prefab").RegisterProjectile();
-            StickyProjectile = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Projectiles/StickyProjectile.prefab").RegisterProjectile();
-            HookProjectile = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Projectiles/HookProjectile.prefab").RegisterProjectile();
-            SwordPillarProjectile = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Projectiles/SwordPillar.prefab").RegisterProjectile();
-            DemolisherProjectile = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Projectiles/DemolisherProjectile.prefab").RegisterProjectile();
+            WhirlwindEffect = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Effects/DemolisherWhirlwind.prefab").RegisterEffect();
+            GrenadeProjectile = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Projectiles/DemolisherGrenadeProjectile.prefab").RegisterProjectile(ModifyRocketJump);
+            StickyProjectile = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Projectiles/DemolisherStickyProjectile.prefab").RegisterProjectile(ModifyRocketJump);
+            HookProjectile = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Projectiles/DemolisherHookProjectile.prefab").RegisterProjectile();
+            SwordPillarProjectile = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Projectiles/DemolisherSwordPillar.prefab").RegisterProjectile();
+            DemolisherProjectile = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Projectiles/DemolisherDemolisherProjectile.prefab").RegisterProjectile(ModifyRocketJump);
+            BombProjectile = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Projectiles/DemolisherBombProjectile.prefab").RegisterProjectile(ModifyRocketJump);
             LemurianFireBallGhost = Addressables.LoadAssetAsync<GameObject>("RoR2/Base/Lemurian/FireballGhost.prefab").WaitForCompletion();
             MediumMelee = assetBundle.LoadAsset<SteppedSkillDef>("Assets/Demolisher/SkillDefs/MeleePrimary/DemolisherMediumMelee.asset").RegisterSkillDef();
             ShieldBash = assetBundle.LoadAsset<SkillDef>("Assets/Demolisher/SkillDefs/MeleeUtility/DemolisherShieldBash.asset").RegisterSkillDef();
@@ -240,12 +263,16 @@ namespace Demolisher
             InstantMeleeSwing = assetBundle.LoadAsset<BuffDef>("Assets/Demolisher/Buffs/InstantMeleeSwing.asset").RegisterBuffDef();
             IgnoreBoots = assetBundle.LoadAsset<BuffDef>("Assets/Demolisher/Buffs/IgnoreBoots.asset").RegisterBuffDef();
             BootsPassive = assetBundle.LoadAsset<ItemDef>("Assets/Demolisher/Items/BootsPassive.asset").RegisterItemDef();
+            ChainDashUnlock = assetBundle.LoadAsset<UnlockableDef>("Assets/Demolisher/Unlocks/DemolisherChaindashUnlock.asset").RegisterUnlockableDef();
+            CollapseUnlock = assetBundle.LoadAsset<UnlockableDef>("Assets/Demolisher/Unlocks/DemolisherCollapseUnlock.asset").RegisterUnlockableDef();
+            FlyUnlock = assetBundle.LoadAsset<UnlockableDef>("Assets/Demolisher/Unlocks/DemolisherFlyUnlock.asset").RegisterUnlockableDef();
+            HookLauncherUnlock = assetBundle.LoadAsset<UnlockableDef>("Assets/Demolisher/Unlocks/DemolisherHookLauncherUnlock.asset").RegisterUnlockableDef();
+            SlicingUnlock = assetBundle.LoadAsset<UnlockableDef>("Assets/Demolisher/Unlocks/DemolisherSlicingUnlock.asset").RegisterUnlockableDef();
+            MasteryUnlock = assetBundle.LoadAsset<UnlockableDef>("Assets/Demolisher/Unlocks/DemolisherMasteryUnlock.asset").RegisterUnlockableDef();
+            GrandMasteryUnlock = assetBundle.LoadAsset<UnlockableDef>("Assets/Demolisher/Unlocks/DemolisherFuelArrayCellWinUnlock.asset").RegisterUnlockableDef();
             Default = assetBundle.LoadAsset<SkinDef>("Assets/Demolisher/Character/DemolisherDefault.asset");
             Nuclear = assetBundle.LoadAsset<SkinDef>("Assets/Demolisher/Character/DemolisherNuclear.asset");
-            //TimestopPP = assetBundle2.LoadAsset<PostProcessProfile>("Assets/Demolisher/DemolisherTimestopPP.asset");
             TimestopEffect = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Effects/DemolisherTimestopEffect.prefab");
-            //PostProcessVolume postProcessVolume = TimestopEffect.GetComponent<PostProcessVolume>();
-            //postProcessVolume.sharedProfile = TimestopPP;
             skinSkillVariantsDef = assetBundle.LoadAsset<SkinSkillVariantsDef>("Assets/Demolisher/Character/DemolisherDefaultSkillVariants.asset");
             skinSkillVariantsDef.Register();
             skinNuclearSkillVariantsDef = assetBundle.LoadAsset<SkinSkillVariantsDef>("Assets/Demolisher/Character/DemolisherNuclearSkillVariants.asset");
@@ -258,6 +285,7 @@ namespace Demolisher
             LaserEffect = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Effects/DemolisherLaser.prefab");
             IamRedAsFuck = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Effects/IAmRedAsFuck.prefab");
             Crosshair = assetBundle.LoadAsset<GameObject>("Assets/Demoman/DemoExtraCrosshairReworkSimplified.prefab");
+            Aura = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Effects/DemolisherAura.prefab");
             CrosshairMeleeSprite = assetBundle.LoadAsset<Sprite>("Assets/Demoman/UI/DemoSwordIndicatorThinHalf2.png");
             CrosshairRangedSprite = assetBundle.LoadAsset<Sprite>("Assets/Demoman/UI/DemoStickyIndicatorThinHalf2.png");
             SharpnessWeapon = Sharpness.RegisterWeapon<DemolisherWeaponSkillDef, DemolisherBulletAttackWeaponDef>(null, null);
@@ -319,6 +347,12 @@ namespace Demolisher
             EntityStateMachine entityStateMachine = characterBody.GetComponent<EntityStateMachine>();
             if (entityStateMachine == null) return;
             entityStateMachine.SetStateToMain();
+        }
+        public static void ModifyRocketJump(GameObject projectile)
+        {
+            RocketJumpComponent rocketJumpComponent = projectile.GetComponent<RocketJumpComponent>();
+            if (!rocketJumpComponent) return;
+            rocketJumpComponent.buffsWhileMidair = [BrynzaAPI.Assets.KeepVelocityBuff, BrynzaAPI.Assets.AirControlFromVelocityAddBuff, BrynzaAPI.Assets.AirControlFromVelocityAddBuff, BrynzaAPI.Assets.AirControlFromVelocityAddBuff, BrynzaAPI.Assets.AirControlFromVelocityAddBuff, BrynzaAPI.Assets.AirControlFromVelocityAddBuff, BrynzaAPI.Assets.AirControlFromVelocityAddBuff, BrynzaAPI.Assets.AirControlFromVelocityAddBuff, BrynzaAPI.Assets.AirControlFromVelocityAddBuff, BrynzaAPI.Assets.AirControlFromVelocityAddBuff, BrynzaAPI.Assets.AirControlFromVelocityAddBuff, BrynzaAPI.Assets.AirControlFromVelocityAddBuff, BrynzaAPI.Assets.AirControlFromVelocityAddBuff, BrynzaAPI.Assets.AirControlFromVelocityAddBuff, BrynzaAPI.Assets.AirControlFromVelocityAddBuff, BrynzaAPI.Assets.AirControlFromVelocityAddBuff];
         }
     }
 }

@@ -3,6 +3,7 @@ using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using BrynzaAPI;
+using HarmonyLib;
 using R2API;
 using R2API.Utils;
 using System.Collections.Generic;
@@ -26,10 +27,9 @@ namespace Demolisher
     [BepInDependency(R2API.DamageAPI.PluginGUID, DamageAPI.PluginVersion)]
     [BepInDependency(R2API.Networking.NetworkingAPI.PluginGUID)]
     [BepInDependency(BrynzaAPI.BrynzaAPI.ModGuid, BepInDependency.DependencyFlags.HardDependency)]
-    //[BepInDependency(EmoteCompatAbility.customEmotesApiGUID, BepInDependency.DependencyFlags.SoftDependency)]
-    //[BepInDependency(RiskOfOptionsCompatability.riskOfOptionsGUID, BepInDependency.DependencyFlags.SoftDependency)]
+    [BepInDependency(ModCompatabilities.EmoteCompatability.GUID, BepInDependency.DependencyFlags.SoftDependency)]
+    [BepInDependency(ModCompatabilities.RiskOfOptionsCompatability.GUID, BepInDependency.DependencyFlags.SoftDependency)]
     [NetworkCompatibility(CompatibilityLevel.EveryoneMustHaveMod, VersionStrictness.EveryoneNeedSameModVersion)]
-    //[R2APISubmoduleDependency(nameof(CommandHelper))]
     [System.Serializable]
     public class DemolisherPlugin : BaseUnityPlugin
     {
@@ -41,7 +41,8 @@ namespace Demolisher
         public static bool riskOfOptionsEnabled { get; private set; }
         public static BepInEx.PluginInfo PInfo { get; private set; }
         public static ConfigFile configFile { get; private set; }
-        public static ManualLogSource Log {  get; private set; }
+        public static ManualLogSource Log { get; private set; }
+        public static Harmony harmonyPatcher;
         public void Awake()
         {
             PInfo = Info;
@@ -54,18 +55,24 @@ namespace Demolisher
             Assets.Init();
             Demolisher.Config.Init();
             Hooks.SetHooks();
+            harmonyPatcher = new Harmony(Skins.PluginGUID);
+            harmonyPatcher.CreateClassProcessor(typeof(Patches)).Patch();
             NetworkMessages.Init();
         }
         public void Update()
         {
             if (Slicing.count > 0)
             {
-                if (!Slicing.ppEffect) Slicing.ppEffect = Instantiate(Assets.TimestopEffect);
+                if (Slicing.ppEffect) Slicing.ppEffect.SetActive(true);
             }
             else
             {
-                if (Slicing.ppEffect) Destroy(Slicing.ppEffect);
+                if (Slicing.ppEffect) Slicing.ppEffect.SetActive(false);
             }
+        }
+        public void FixedUpdate()
+        {
+            Hooks.stagetStartTime += Time.fixedDeltaTime;
         }
     }
 }

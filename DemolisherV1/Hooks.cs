@@ -9,6 +9,7 @@ using R2API.Utils;
 using Rewired;
 using RoR2;
 using RoR2.CharacterAI;
+using RoR2.ContentManagement;
 using RoR2.UI;
 using RoR2BepInExPack.Utilities;
 using System;
@@ -17,10 +18,95 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Text;
 using UnityEngine;
+using UnityEngine.AddressableAssets;
 using static UnityEngine.SendMouseEvents;
 
 namespace Demolisher
 {
+    [HarmonyPatch]
+    class Patches
+    {
+        [HarmonyPatch(typeof(SkinDef.RuntimeSkin), nameof(SkinDef.RuntimeSkin.ApplyAsync), MethodType.Enumerator)]
+        [HarmonyPatch([typeof(GameObject), typeof(List<AssetReferenceT<Material>>), typeof(List<AssetReferenceT<Mesh>>), typeof(List<AssetReferenceT<GameObject>>), typeof(AsyncReferenceHandleUnloadType)])]
+        [HarmonyILManipulator]
+        private static void SkinDef_RuntimeSkin_ApplyAsync(MonoMod.Cil.ILContext il)
+        {
+            ILCursor c = new ILCursor(il);
+            FieldReference fieldReference = null;
+            if (
+                c.TryGotoNext(MoveType.After,
+                    x => x.MatchLdarg(0),
+                    x => x.MatchLdfld(out fieldReference),
+                    x => x.MatchLdcI4(1),
+                    x => x.MatchStfld<CharacterModel>("forceUpdate")
+                ))
+            {
+                c.Emit(OpCodes.Ldarg_0);
+                c.Emit(OpCodes.Ldfld, fieldReference);
+                c.Emit(OpCodes.Ldloc_1);
+                c.EmitDelegate(SetDevilMaterial);
+                void SetDevilMaterial(CharacterModel characterModel, SkinDef.RuntimeSkin runtimeSkin)
+                {
+                    DemolisherRuntimeSkin demolisherRuntimeSkin = runtimeSkin as DemolisherRuntimeSkin;
+                    if (demolisherRuntimeSkin == null) return;
+                    DemolisherModel demolisherModel = characterModel as DemolisherModel;
+                    if (!demolisherModel) return;
+                    demolisherModel.devilMaterial = demolisherRuntimeSkin.devilMaterial;
+                }
+            }
+            else
+            {
+                DemolisherPlugin.Log.LogError(il.Method.Name + " IL Hook failed!");
+            }
+        }
+        [HarmonyPatch(typeof(SkinDef), nameof(SkinDef.BakeAsync), MethodType.Enumerator)]
+        [HarmonyILManipulator]
+        private static void SkinDef_BakeAsync(MonoMod.Cil.ILContext il)
+        {
+            ILCursor c = new ILCursor(il);
+            if (
+                c.TryGotoNext(MoveType.Before,
+                    x => x.MatchStfld<SkinDef>(nameof(SkinDef._runtimeSkin))
+                ))
+            {
+                c.Emit(OpCodes.Ldloc, 2);
+                c.EmitDelegate(SetDevilMaterial);
+                SkinDef.RuntimeSkin SetDevilMaterial(SkinDef.RuntimeSkin runtimeSkin, SkinDefParams skinDefParams)
+                {
+                    DemolisherSkinDefParams demolisherSkinDefParams = skinDefParams as DemolisherSkinDefParams;
+                    if (!demolisherSkinDefParams) return runtimeSkin;
+                    return new DemolisherRuntimeSkin(runtimeSkin, demolisherSkinDefParams.devilMaterial);
+                }
+            }
+            else
+            {
+                DemolisherPlugin.Log.LogError(il.Method.Name + " IL Hook failed!");
+            }
+        }
+        //[HarmonyPatch(typeof(SkinCatalog), nameof(SkinCatalog.Init), MethodType.Enumerator)]
+        //[HarmonyILManipulator]
+        //private static void SkinCatalog_Init(MonoMod.Cil.ILContext il)
+        //{
+        //    ILCursor c = new ILCursor(il);
+        //    Instruction lastInstruction = il.Instrs[il.Instrs.Count - 1];
+        //    c.Goto(lastInstruction);
+        //    c.Index--;
+        //    c.EmitDelegate(FixSkins);
+        //}
+        //private static void FixSkins()
+        //{
+        //    ModelSkinController bodyModelSkinController = Assets.DemolisherBody.GetComponentInChildren<ModelSkinController>();
+        //    RemoveFirstSkin(ref bodyModelSkinController.skins);
+        //    ModelSkinController displayModelSkinController = Assets.Demolisher.displayPrefab.GetComponentInChildren<ModelSkinController>();
+        //    RemoveFirstSkin(ref displayModelSkinController.skins);
+        //    void RemoveFirstSkin(ref SkinDef[] skinDefs)
+        //    {
+        //        Array.Reverse(skinDefs);
+        //        Array.Resize(ref skinDefs, skinDefs.Length - 1);
+        //        Array.Reverse(skinDefs);
+        //    }
+        //}
+    }
     public static class Hooks
     {
         public static FieldReference FieldReference;
@@ -39,6 +125,51 @@ namespace Demolisher
             On.RoR2.UI.CharacterSelectController.OnEnable += CharacterSelectController_OnEnable;
             On.RoR2.UI.CharacterSelectController.OnDisable += CharacterSelectController_OnDisable;
             On.RoR2.ModelLocator.UpdateTargetNormal += ModelLocator_UpdateTargetNormal;
+            //On.RoR2.TeleporterInteraction.IdleToChargingState.OnEnter += IdleToChargingState_OnEnter;
+            Stage.onStageStartGlobal += Stage_onStageStartGlobal;
+            On.RoR2.CharacterMotor.OnGroundHit += CharacterMotor_OnGroundHit;
+            SceneDirector.onPrePopulateSceneServer += SceneDirector_onPrePopulateSceneServer;
+        }
+        public static float DemolisherFuelCellArrayCreditsReduction = 0.2f;
+        private static void SceneDirector_onPrePopulateSceneServer(SceneDirector obj)
+        {
+            float creditsMultiplier = 1f;
+            foreach (PlayerCharacterMasterController playerCharacterMasterController in PlayerCharacterMasterController.instances)
+            {
+                CharacterMaster characterMaster = playerCharacterMasterController.master;
+                if (!characterMaster) continue;
+                if (characterMaster.backupBodyIndex == Assets.DemolisherBodyIndex)
+                {
+                    Inventory inventory = characterMaster.inventory;
+                    if (!inventory) continue;
+                    foreach (EquipmentState[] equipmentStates in inventory._equipmentStateSlots) foreach (EquipmentState equipmentState in equipmentStates)
+                            if (equipmentState.equipmentIndex == RoR2Content.Equipment.QuestVolatileBattery.equipmentIndex) creditsMultiplier *= DemolisherFuelCellArrayCreditsReduction;
+                }
+            }
+            obj.onPopulateCreditMultiplier *= creditsMultiplier;
+        }
+
+        public static Action<Collider> onGroundHitOnTime;
+
+        private static void CharacterMotor_OnGroundHit(On.RoR2.CharacterMotor.orig_OnGroundHit orig, CharacterMotor self, Collider hitCollider, Vector3 hitNormal, Vector3 hitPoint, ref KinematicCharacterController.HitStabilityReport hitStabilityReport)
+        {
+            orig(self, hitCollider, hitNormal, hitPoint, ref hitStabilityReport);
+            if (stagetStartTime > stagetRequieredTime) return;
+            onGroundHitOnTime?.Invoke(hitCollider);
+        }
+
+        public static float stagetStartTime;
+        public static float stagetRequieredTime = 14f;
+        private static void Stage_onStageStartGlobal(Stage obj)
+        {
+            stagetStartTime = 0f;
+        }
+        public static Action onTeleporterActivationUnderRequieredTime;
+        private static void IdleToChargingState_OnEnter(On.RoR2.TeleporterInteraction.IdleToChargingState.orig_OnEnter orig, TeleporterInteraction.IdleToChargingState self)
+        {
+            orig(self);
+            if (stagetStartTime > stagetRequieredTime) return;
+            onTeleporterActivationUnderRequieredTime?.Invoke();
         }
 
         private static void ModelLocator_UpdateTargetNormal(On.RoR2.ModelLocator.orig_UpdateTargetNormal orig, ModelLocator self)
@@ -139,6 +270,11 @@ namespace Demolisher
 
         private static void OnRoR2Loaded()
         {
+            Slicing.ppEffect = GameObject.Instantiate(Assets.TimestopEffect);
+            GameObject.DontDestroyOnLoad(Slicing.ppEffect);
+            Slicing.ppEffect.SetActive(false);
+            BuffPassengerWhileSeated buffPassengerWhileSeated = Assets.DemolisherElevator.GetComponent<BuffPassengerWhileSeated>();
+            buffPassengerWhileSeated.buff = RoR2Content.Buffs.HiddenInvincibility;
             int count = VoicelineDef.voicelineDefs.Count;
             for (int i = 0; i < count; i++)
             {
@@ -278,7 +414,7 @@ namespace Demolisher
                 c.Emit(OpCodes.Ldfld, ThatFuckingStructThatIHate.Fields[2]);
                 c.Emit(OpCodes.Ldloc_0);
                 c.Emit(OpCodes.Ldfld, ThatFuckingStructThatIHate.Fields[1]);
-                c.Emit(OpCodes.Ldloc, 7);
+                c.Emit(OpCodes.Ldloc, 9);
                 c.EmitDelegate(HandleSharpness);
                 float HandleSharpness(HealthComponent healthComponent, DamageInfo damageInfo, CharacterBody attackerBody, float damage)
                 {
@@ -321,7 +457,7 @@ namespace Demolisher
                     }
                     return damage;
                 }
-                c.Emit(OpCodes.Stloc, 7);
+                c.Emit(OpCodes.Stloc, 9);
             }
             else
             {

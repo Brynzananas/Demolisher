@@ -354,7 +354,7 @@ namespace Demolisher
             speedMultiplier.SettingChanged += OnConfigChanged;
             moveVectorSmoothTime.SettingChanged += OnConfigChanged;
         }
-        private static void OnConfigChanged(object sender, EventArgs e) => Language.InitSlicing();
+        private static void OnConfigChanged(object sender, EventArgs e) => Language.InitChainDash();
         public static ConfigEntry<float> baseStartWindow;
         public static ConfigEntry<float> baseEndWindow;
         public static ConfigEntry<float> speedMultiplier;
@@ -387,7 +387,7 @@ namespace Demolisher
             stompForce.SettingChanged += OnConfigChanged;
             stompFalloff.SettingChanged += OnConfigChanged;
         }
-        private static void OnConfigChanged(object sender, EventArgs e) => Language.InitSlicing();
+        private static void OnConfigChanged(object sender, EventArgs e) => Language.InitFly();
         public static ConfigEntry<float> baseFlyVectorSmoothTime;
         public static ConfigEntry<float> baseSpeedMultiplier;
         public static ConfigEntry<float> baseSpeedSmoothTime;
@@ -417,7 +417,7 @@ namespace Demolisher
             range.SettingChanged += OnConfigChanged;
             radius.SettingChanged += OnConfigChanged;
         }
-        private static void OnConfigChanged(object sender, EventArgs e) => Language.InitSlicing();
+        private static void OnConfigChanged(object sender, EventArgs e) => Language.InitLaser();
         public static ConfigEntry<float> damageCoefficient;
         public static ConfigEntry<float> procCoefficient;
         public static ConfigEntry<float> force;

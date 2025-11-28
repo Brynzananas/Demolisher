@@ -44,7 +44,7 @@ namespace Demolisher
             }
         }
     }
-    public class DemolisherComponent : MonoBehaviour
+    public class DemolisherComponent : NetworkBehaviour
     {
         public static float swapSpeed = 0.1f;
         public static float extraCrosshairScale = 1.5f;
@@ -214,6 +214,21 @@ namespace Demolisher
             //holsterSpecial?.LinkSkill(skillLocator.special);
             onSwapped?.Invoke(this);
         }
+        public void CallSwapWeapons()
+        {
+            if (NetworkServer.active)
+            {
+                RpcSwapWeapons();
+            }
+            else
+            {
+                CmdSwapWeapons();
+            }
+        }
+        [ClientRpc]
+        public void RpcSwapWeapons() => SwapWeapons();
+        [Command]
+        public void CmdSwapWeapons() => RpcSwapWeapons();
         public void ToggleWeapon(string name, bool toggle)
         {
             if (childLocator == null) return;
@@ -385,7 +400,6 @@ namespace Demolisher
                 aimVector = aimVector,
                 allowTrajectoryAimAssist = allowTrajectoryAimAssist,
                 bulletCount = (uint)bulletCount,
-                cheapMultiBullet = cheapMultiBullet,
                 damage = projectileDamage.damage,
                 damageColorIndex = projectileDamage.damageColorIndex,
                 damageType = projectileDamage.damageType,
@@ -394,7 +408,6 @@ namespace Demolisher
                 isCrit = projectileDamage.crit,
                 maxSpread = maxSpread,
                 minSpread = minSpread,
-                multiBulletOdds = multiBulletOdds,
                 origin = transform.position,
                 owner = projectileController.owner,
                 radius = radius,
@@ -417,11 +430,9 @@ namespace Demolisher
         {
             bulletAttack.allowTrajectoryAimAssist = allowTrajectoryAimAssist;
             bulletAttack.bulletCount = (uint)bulletCount;
-            bulletAttack.cheapMultiBullet = cheapMultiBullet;
             bulletAttack.falloffModel = falloffModel;
             bulletAttack.maxSpread = maxSpread;
             bulletAttack.minSpread = minSpread;
-            bulletAttack.multiBulletOdds = multiBulletOdds;
             bulletAttack.sniper = sniper;
             bulletAttack.smartCollision = smartCollision;
             bulletAttack.trajectoryAimAssistMultiplier = trajectoryAimAssistMultiplier;
@@ -447,6 +458,11 @@ namespace Demolisher
 
             }
             updateStopwatch = 0f;
+        }
+        public void OneTimeMeleeModification(DemolisherBulletAttackWeaponDef demolisherBulletAttackWeaponDef)
+        {
+            object attack = bulletAttack;
+            demolisherBulletAttackWeaponDef.OneTimeModification(this, ref attack);
         }
         public virtual void FireBulletAttack()
         {
@@ -510,7 +526,7 @@ namespace Demolisher
                         fireTallSword.stateTaken = true;
                         inputBank = fireTallSword.inputBank;
                         object attack = bulletAttack;
-                        meleeWeapon.OneTimeModification(projectileController, ref attack);
+                        OneTimeMeleeModification(meleeWeapon);
                         break;
                     }
                 }
@@ -613,15 +629,17 @@ namespace Demolisher
         {
             foreach (ParticleSystem particleSystem in swipeParticles) particleSystem.playbackSpeed = speed;
         }
-        //public void Start()
-        //{
-        //    if (!effectComponent || effectComponent.effectData == null) return;
-        //    float speed = 1f / effectComponent.effectData.genericFloat;
-        //    foreach (ParticleSystem particleSystem in swipeParticles)
-        //    {
-        //        particleSystem.playbackSpeed = speed;
-        //    }
-        //}
+    }
+    public class DemolisherWhirlwind : MonoBehaviour
+    {
+        public EffectComponent effectComponent;
+        public ParticleSystem[] particles;
+        public void Start()
+        {
+            if (!effectComponent || effectComponent.effectData == null) return;
+            float speed = 1f / effectComponent.effectData.genericFloat;
+            foreach (ParticleSystem particleSystem in particles)  particleSystem.playbackSpeed = speed;
+        }
     }
     [RequireComponent(typeof(ProjectileController))]
     [RequireComponent(typeof(ProjectileStickOnImpact))]
@@ -982,6 +1000,7 @@ namespace Demolisher
     public class DemolisherModel : CharacterModel
     {
         public Animator animator;
+        public ModelSkinController modelSkinController;
         private float _shakeWeight = 0.01f;
         public float shakeWeight
         {
@@ -996,11 +1015,14 @@ namespace Demolisher
             }
         }
         public Material devilMaterial;
-        public GameObject[] devilObjects;
+        public GameObject[] devilObjects = [];
+        public List<GameObject> extraDevilObjects = [];
         public ParticleSystem[] devilParticles;
-        public GameObject[] nonDevilObjects;
+        public GameObject[] nonDevilObjects = [];
+        public List<GameObject> extraNonDevilObjects = [];
         public GameObject swordObject;
         public GameObject gunObject;
+        public DemolisherAuraMeshTrail[] demolisherAuraMeshTrails = [];
         private TemporaryOverlay temporaryOverlay;
         private bool _emoting;
         public bool emoting
@@ -1066,18 +1088,23 @@ namespace Demolisher
             set
             {
                 _devilCount = value;
+                auraCount = value;
                 if (value > 0)
                 {
                     if (devilCountApplied) return;
                     devilCountApplied = true;
                     foreach (GameObject devilObject in devilObjects) devilObject.SetActive(true);
+                    foreach (GameObject devilObject in extraDevilObjects) devilObject.SetActive(true);
                     foreach (GameObject nonDevilObject in nonDevilObjects) nonDevilObject.SetActive(false);
-                    if (devilMaterial && !temporaryOverlay)
+                    foreach (GameObject nonDevilObject in extraNonDevilObjects) nonDevilObject.SetActive(false);
+                    if (devilMaterial)
                     {
-                        //if (temporaryOverlay) Destroy(temporaryOverlay);
-                        temporaryOverlay = gameObject.AddComponent<TemporaryOverlay>();
-                        temporaryOverlay.alphaCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
-                        temporaryOverlay.inspectorCharacterModel = this;
+                        if (!temporaryOverlay)
+                        {
+                            temporaryOverlay = gameObject.AddComponent<TemporaryOverlay>();
+                            temporaryOverlay.alphaCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
+                            temporaryOverlay.inspectorCharacterModel = this;
+                        }
                         temporaryOverlay.originalMaterial = devilMaterial;
                         temporaryOverlay.AddToCharacerModel(this);
                     }
@@ -1087,8 +1114,10 @@ namespace Demolisher
                     if (!devilCountApplied) return;
                     devilCountApplied = false;
                     foreach (GameObject devilObject in devilObjects) devilObject.SetActive(false);
+                    foreach (GameObject devilObject in extraDevilObjects) devilObject.SetActive(false);
                     foreach (GameObject nonDevilObject in nonDevilObjects) nonDevilObject.SetActive(true);
-                    if (temporaryOverlay) Destroy(temporaryOverlay);
+                    foreach (GameObject nonDevilObject in extraNonDevilObjects) nonDevilObject.SetActive(true);
+                    if (temporaryOverlay) temporaryOverlay.RemoveFromCharacterModel();
                 }
             }
         }
@@ -1114,6 +1143,31 @@ namespace Demolisher
                 }
             }
         }
+        private int _auraCount;
+        public int auraCount
+        {
+            get => _auraCount;
+            set
+            {
+                _auraCount = value;
+                if (value > 0)
+                {
+                    foreach (DemolisherAuraMeshTrail demolisherAuraMeshTrail in demolisherAuraMeshTrails)
+                    {
+                        if (!demolisherAuraMeshTrail) continue;
+                        demolisherAuraMeshTrail.enabled = true;
+                    }
+                }
+                else
+                {
+                    foreach (DemolisherAuraMeshTrail demolisherAuraMeshTrail in demolisherAuraMeshTrails)
+                    {
+                        if (!demolisherAuraMeshTrail) continue;
+                        demolisherAuraMeshTrail.enabled = false;
+                    }
+                }
+            }
+        }
         public List<float> timedDevilCounts = [];
         public void DevilUp(AnimationEvent animationEvent) => devilCount++;
         public void DevilDown(AnimationEvent animationEvent) => devilCount--;
@@ -1135,6 +1189,29 @@ namespace Demolisher
                     continue;
                 }
                 timedDevilCounts[i] = time;
+            }
+        }
+        public new void OnEnable()
+        {
+            base.OnEnable();
+            modelSkinController.onSkinApplied += OnDemolisherSkinApplied;
+        }
+        public new void OnDisable()
+        {
+            base.OnDisable();
+            modelSkinController.onSkinApplied -= OnDemolisherSkinApplied;
+        }
+        private void OnDemolisherSkinApplied(int obj)
+        {
+            for (int i = 0; i < extraDevilObjects.Count; i++)
+            {
+                GameObject go = extraDevilObjects[i];
+                if (!go) extraDevilObjects.Remove(go);
+            }
+            for (int i = 0; i < extraNonDevilObjects.Count; i++)
+            {
+                GameObject go = extraNonDevilObjects[i];
+                if (!go) extraNonDevilObjects.Remove(go);
             }
         }
     }
@@ -1392,11 +1469,11 @@ namespace Demolisher
             if (launcher)
             {
                 launcher.gameObject.SetActive(true);
-                if (weaponL)
-                {
-                    launcher.SetParent(weaponL, false);
-                    launcher.localEulerAngles = new Vector3(0f, 90f, 0f);
-                }
+                //if (weaponL)
+                //{
+                //    launcher.SetParent(weaponL, false);
+                //    launcher.localEulerAngles = new Vector3(0f, 90f, 0f);
+                //}
             }
             if (demolisherModel) demolisherModel.devilCount--;
             Transform effect = childLocator.FindChild("Phase3Effect");
@@ -1566,6 +1643,132 @@ namespace Demolisher
             }
         }
     }
+    public class DemolisherAuraMeshTrail : MonoBehaviour
+    {
+        public SkinnedMeshRenderer skinnedMeshRenderer;
+        public CharacterMotor characterMotor;
+        public float interval = 0.1f;
+        private float stopwatch;
+        public void Update()
+        {
+            stopwatch += Time.deltaTime;
+            if (stopwatch >= interval)
+            {
+                if (skinnedMeshRenderer && skinnedMeshRenderer.enabled && skinnedMeshRenderer.gameObject.activeSelf && skinnedMeshRenderer.sharedMesh) AddAura();
+                stopwatch = 0f;
+            }
+        }
+        public void AddAura()
+        {
+            GameObject gameObject = Instantiate(Assets.Aura);
+            gameObject.transform.position = transform.position;
+            gameObject.transform.rotation = transform.rotation;
+            gameObject.transform.localScale = transform.localScale;
+            DemolisherAuraMesh demolisherAuraMesh = gameObject.GetComponent<DemolisherAuraMesh>();
+            if (demolisherAuraMesh)
+            {
+                if (demolisherAuraMesh.meshFilter) skinnedMeshRenderer.BakeMesh(demolisherAuraMesh.meshFilter.mesh, true);
+                if (demolisherAuraMesh.meshRenderer)
+                {
+                    demolisherAuraMesh.meshRenderer.materials = skinnedMeshRenderer.materials;
+                    demolisherAuraMesh.meshRenderer.sharedMaterials = skinnedMeshRenderer.sharedMaterials;
+                }
+                demolisherAuraMesh.direction = transform.forward * -1f;
+            }
+        }
+    }
+    public class DemolisherAuraMesh : MonoBehaviour
+    {
+        public MeshFilter meshFilter;
+        public MeshRenderer meshRenderer;
+        public Vector3 direction;
+        public float speed = 1f;
+        public float lifetime = 1f;
+        public AnimationCurve fadeCurve = AnimationCurve.Linear(0f, 1f, 1f, 0f);
+        public AnimationCurve speedCurve = AnimationCurve.Linear(0f, 1f, 1f, 1f);
+        private float stopwach;
+        public void Update()
+        {
+            transform.position += direction * speed * speedCurve.Evaluate(stopwach / lifetime) * Time.deltaTime;
+            stopwach += Time.deltaTime;
+            if (stopwach >= lifetime) Destroy(gameObject);
+            if (meshRenderer)
+                foreach (Material material in meshRenderer.materials)
+                {
+                    if (!material || !material.HasFloat("_Fade")) continue;
+                    material.SetFloat("_Fade", fadeCurve.Evaluate(stopwach / lifetime));
+                }
+        }
+        public void OnDestroy()
+        {
+            if (meshFilter && meshFilter.mesh) Destroy(meshFilter.mesh);
+        }
+    }
+    public class DemolisherSkinCustomGameObjectComponent : SkinCustomGameobjectComponent
+    {
+        public bool devilObject;
+        public ParticleCustomSimulationSpace[] particleCustomSimulationSpaceArray = [];
+        public string emotePath;
+        private bool applied;
+        private Transform previousParent;
+        public void Start()
+        {
+            previousParent = transform.parent;
+            if (applied) return;
+            applied = true;
+            if (!characterModel) return;
+            if (particleCustomSimulationSpaceArray != null) SetParticleCustomSimulationSpace(false);
+            DemolisherModel demolisherModel = characterModel as DemolisherModel;
+            ModCompatabilities.EmoteCompatability.onDemolisherEmote += OnDemolisherEmote;
+            if (!demolisherModel) return;
+            if (devilObject)
+            {
+                demolisherModel.extraDevilObjects.Add(gameObject);
+            }
+            else
+            {
+                demolisherModel.extraNonDevilObjects.Add(gameObject);
+            }
+        }
+        public void SetParticleCustomSimulationSpace(bool emote)
+        {
+            foreach (ParticleCustomSimulationSpace particleCustomSimulationSpace in particleCustomSimulationSpaceArray)
+            {
+                Transform transform = characterModel.transform.Find(emote ? particleCustomSimulationSpace.emotePath : particleCustomSimulationSpace.path);
+                if (transform == null) continue;
+                particleCustomSimulationSpace.particleSystem.simulationSpace = ParticleSystemSimulationSpace.Custom;
+                ParticleSystem.MainModule mainModule = particleCustomSimulationSpace.particleSystem.main;
+                mainModule.customSimulationSpace = transform;
+            }
+        }
+        private void OnDemolisherEmote(string arg1, DemolisherModel model)
+        {
+            if (arg1 == "none")
+            {
+                transform.SetParent(previousParent, false);
+                SetParticleCustomSimulationSpace(false);
+            }
+            else
+            {
+                Transform transform = characterModel?.transform.Find(emotePath);
+                if (transform) this.transform.SetParent(transform, false);
+                SetParticleCustomSimulationSpace(true);
+            }
+        }
+
+        public void OnDestroy()
+        {
+            if (!applied) return;
+            ModCompatabilities.EmoteCompatability.onDemolisherEmote -= OnDemolisherEmote;
+        }
+        [Serializable]
+        public struct ParticleCustomSimulationSpace
+        {
+            public string path;
+            public string emotePath;
+            public ParticleSystem particleSystem;
+        }
+    }
     public abstract class DemolisherWeaponDef : ScriptableObject
     {
         public delegate void ModificationDelegate(object source, ref object attack);
@@ -1645,6 +1848,24 @@ namespace Demolisher
     public class DemolisherWeaponSkillDef : SkillDef
     {
         public DemolisherWeaponDef demolisherWeaponDef;
+    }
+    public class DemolisherSkinDefParams : SkinDefParams
+    {
+        public Material devilMaterial;
+    }
+    public class DemolisherRuntimeSkin : SkinDef.RuntimeSkin
+    {
+        public DemolisherRuntimeSkin(SkinDef.RuntimeSkin runtimeSkin, Material material)
+        {
+            this.rendererInfoTemplates = runtimeSkin.rendererInfoTemplates;
+            this.gameObjectActivationTemplates = runtimeSkin.gameObjectActivationTemplates;
+            this.meshReplacementTemplates = runtimeSkin.meshReplacementTemplates;
+            this.lightReplacementTemplates = runtimeSkin.lightReplacementTemplates;
+            this.ghostReplacementTemplates = runtimeSkin.ghostReplacementTemplates;
+            this.minionSkinTemplates = runtimeSkin.minionSkinTemplates;
+            devilMaterial = material;
+        }
+        public Material devilMaterial;
     }
     [CreateAssetMenu(menuName = "Demolisher/VoicelineDef")]
     public class VoicelineDef : ScriptableObject

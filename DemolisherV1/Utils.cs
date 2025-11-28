@@ -31,7 +31,7 @@ namespace Demolisher
         public const string WhirlwindMeleeName = "Whirlwind";
         public const string CollapseName = "Collapse";
         public const string FireTallSwordName = "Ground Slice";
-        public const string ParryName = "Parry";
+        public const string ParryName = "Cross Stich";
         public const string SlicingName = "Slicing Flow";
         public const string SlamName = "Dark Descent";
         public const string ChainDashName = "Chain Dash";
@@ -79,7 +79,8 @@ namespace Demolisher
         {
             ConfigDefinition configDefinition = new ConfigDefinition(section, key);
             object value = null;
-            if (BrynzaAPI.BrynzaAPI.defaultConfigValues.TryGetValue(configFile, out Dictionary<ConfigDefinition, string> keyValuePairs) && keyValuePairs.TryGetValue(configDefinition, out string oldDefaultValue) && configFile.OrphanedEntries.TryGetValue(configDefinition, out string oldValue))
+            if (BrynzaAPI.BrynzaAPI.defaultConfigValues.TryGetValue(configFile, out Dictionary<ConfigDefinition, string> keyValuePairs) &&
+                keyValuePairs.TryGetValue(configDefinition, out string oldDefaultValue) && configFile.OrphanedEntries.TryGetValue(configDefinition, out string oldValue))
             {
                 if (oldDefaultValue != defaultValue.ToString() && oldDefaultValue == oldValue) value = defaultValue;
             }
@@ -160,6 +161,12 @@ namespace Demolisher
             items.Add(itemDef);
             onItemDefRegistered?.Invoke(itemDef);
             return itemDef;
+        }
+        public static T RegisterUnlockableDef<T>(this T unlockableDef, Action<T> onUnlockableDefRegistered = null) where T : UnlockableDef
+        {
+            unlockableDefs.Add(unlockableDef);
+            onUnlockableDefRegistered?.Invoke(unlockableDef);
+            return unlockableDef;
         }
         public static GameObject RegisterProjectile(this GameObject projectile, Action<GameObject> onProjectileRegistered = null)
         {

@@ -25,8 +25,10 @@ namespace Demolisher
                     DemolisherModel demolisherModel = mapper.transform.parent.GetComponent<DemolisherModel>();
                     if (demolisherModel == null) return;
                     demolisherModel.emoting = !(newAnimation == "none");
+                    onDemolisherEmote?.Invoke(newAnimation, demolisherModel);
                 }
             }
+            public static Action<string, DemolisherModel> onDemolisherEmote;
         }
         public static class RiskOfOptionsCompatability
         {

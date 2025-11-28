@@ -1,9 +1,4 @@
-﻿using IL.RoR2.UI;
-using R2API.Utils;
-using System;
-using System.Collections.Generic;
-using System.Text;
-using static Demolisher.Keywords;
+﻿using static Demolisher.Keywords;
 
 namespace Demolisher
 {
@@ -12,6 +7,7 @@ namespace Demolisher
         public static void Init()
         {
             InitCharacter();
+            InitAnchievements();
             InitSharpness();
             InitSoftness();
             InitChaos();
@@ -41,6 +37,25 @@ namespace Demolisher
             AddLanguageToken(Assets.Demolisher.descriptionToken, "ugh");
             AddLanguageToken(Assets.Demolisher.mainEndingEscapeFailureFlavorToken, "...and so he left, escaping eternal torment");
             AddLanguageToken(Assets.Demolisher.outroFlavorToken, "...and so he vanished, leaving nothing behind");
+            AddLanguageToken("DEMOLISHER_SKILL_WEAPON", "Weapon");
+            AddLanguageToken("DEMOLISHER_SKILL_WEAPON", "Weapon");
+        }
+        public static void InitAnchievements()
+        {
+            AddLanguageToken("ACHIEVEMENT_DEMOLISHERSPEEDRUN_NAME", "Demolisher: From A to D Skipping B and C");
+            AddLanguageToken("ACHIEVEMENT_DEMOLISHERSPEEDRUN_DESCRIPTION", $"As Demolisher, touch teleporter under {Hooks.stagetRequieredTime} seconds after stage enter.");
+            AddLanguageToken("ACHIEVEMENT_DEMOLISHERWORLDKILL_NAME", "Demolisher: He Who Celt It");
+            AddLanguageToken("ACHIEVEMENT_DEMOLISHERWORLDKILL_DESCRIPTION", $"As Demolisher, kill a boss by dropping it out of stage.");
+            AddLanguageToken("ACHIEVEMENT_DEMOLISHERFLYINGENEMYKILL_NAME", "Demolisher: Flight Control");
+            AddLanguageToken("ACHIEVEMENT_DEMOLISHERFLYINGENEMYKILL_DESCRIPTION", $"As Demolisher, kill {DemolisherFlyingEnemyKillAchievement.count} flying enemies with your melee weapon.");
+            AddLanguageToken("ACHIEVEMENT_DEMOLISHERRANGEDFARKILL_NAME", "Demolisher: Broken Eye");
+            AddLanguageToken("ACHIEVEMENT_DEMOLISHERRANGEDFARKILL_DESCRIPTION", $"As Demolisher, kill an enemy with a trap from {DemolisherRangedFarKillAchievement.requiredDistance} meters or higher.");
+            AddLanguageToken("ACHIEVEMENT_DEMOLISHERCHARGEDISTANCE_NAME", "Demolisher: Running to Narnia");
+            AddLanguageToken("ACHIEVEMENT_DEMOLISHERCHARGEDISTANCE_DESCRIPTION", $"As Demolisher, achieve {DemolisherChargeDistanceAchievement.requiredDistance} meters per seconds or higher in Charge state.");
+            AddLanguageToken("ACHIEVEMENT_DEMOLISHERMASTERY_NAME", "Demolisher: Mastery");
+            AddLanguageToken("ACHIEVEMENT_DEMOLISHERMASTERY_DESCRIPTION", "As Demolisher, beat the game or obliterate on Monsoon or higher.");
+            AddLanguageToken("ACHIEVEMENT_DEMOLISHERFUELARRAYCELLWIN_NAME", "Demolisher: Grand Mastery");
+            AddLanguageToken("ACHIEVEMENT_DEMOLISHERFUELARRAYCELLWIN_DESCRIPTION", "As Demolisher, beat the game on Monsoon or higher with Fuel Array Cell equiped.");
         }
         public static void InitSharpness()
         {
@@ -60,7 +75,7 @@ namespace Demolisher
         public static void InitMediumMelee()
         {
             AddLanguageToken(Assets.MediumMelee.skillNameToken, MediumMeleeAttackName);
-            AddLanguageToken(Assets.MediumMelee.skillDescriptionToken, $"Swing in the direction you are looking for {damagePrefix}{MediumMeleeAttack.damageCoefficient * 100f}% base damage{endPrefix}");
+            AddLanguageToken(Assets.MediumMelee.skillDescriptionToken, $"{damagePrefix}Melee{endPrefix}. Swing in the direction you are looking for {damagePrefix}{MediumMeleeAttack.damageCoefficient * 100f}% base damage{endPrefix}");
         }
         public static void InitShieldBash()
         {
@@ -70,7 +85,7 @@ namespace Demolisher
         public static void InitChainDash()
         {
             AddLanguageToken(Assets.ChainDash.skillNameToken, ChainDashName);
-            AddLanguageToken(Assets.ChainDash.skillDescriptionToken, $"Dash to inputted direction. Press skill button between {ChainDash.baseStartWindow} and {ChainDash.baseEndWindow} seconds to chain dash. Succesfull chain dash will reset current melle attack");
+            AddLanguageToken(Assets.ChainDash.skillDescriptionToken, $"Dash to wish direction. Press skill button between {ChainDash.baseStartWindow} and {ChainDash.baseEndWindow} seconds to chain dash. Succesfull chain dash will reset current melee attack");
         }
         public static void InitBoots()
         {
@@ -85,7 +100,7 @@ namespace Demolisher
         public static void InitBombLauncher()
         {
             AddLanguageToken(Assets.BombLauncher.skillNameToken, "Heavy Bomb");
-            AddLanguageToken(Assets.BombLauncher.skillDescriptionToken, $"Fire bomb that explodes after time and enemy collision for {damagePrefix}{FireGrenadeConfig.damageCoefficient.Value * (Assets.BombLauncher.demolisherWeaponDef as DemolisherProjectileWeaponDef).damageMultiplier * 100f}% base damage{endPrefix}. Hold down skill button to reduce detonation time.");
+            AddLanguageToken(Assets.BombLauncher.skillDescriptionToken, $"Fire bomb that explodes after time and enemy collision for {damagePrefix}{FireGrenadeConfig.damageCoefficient.Value * (Assets.BombLauncher.demolisherWeaponDef as DemolisherProjectileWeaponDef).damageMultiplier * 100f}% base damage{endPrefix}. Hold down skill button to reduce its detonation time.");
         }
         public static void InitHookLauncher()
         {
@@ -95,7 +110,7 @@ namespace Demolisher
         public static void InitStickyLauncher()
         {
             AddLanguageToken(Assets.StickyLauncher.skillNameToken, "Sticky Trap");
-            AddLanguageToken(Assets.StickyLauncher.skillDescriptionToken, $"Fire trap that explodes on remote detonation for {damagePrefix}{FireGrenadeConfig.damageCoefficient.Value * (Assets.StickyLauncher.demolisherWeaponDef as DemolisherProjectileWeaponDef).damageMultiplier * 100f}% base damage{endPrefix}.");
+            AddLanguageToken(Assets.StickyLauncher.skillDescriptionToken, $"Fire sticky trap that explodes on remote detonation for {damagePrefix}{FireGrenadeConfig.damageCoefficient.Value * (Assets.StickyLauncher.demolisherWeaponDef as DemolisherProjectileWeaponDef).damageMultiplier * 100f}% base damage{endPrefix}.");
         }
         public static void InitDemolisherLauncher()
         {
@@ -105,7 +120,7 @@ namespace Demolisher
         public static void InitSwordPillar()
         {
             AddLanguageToken(Assets.SwordPillar.skillNameToken, FireTallSwordName);
-            AddLanguageToken(Assets.SwordPillar.skillDescriptionToken, $"{damagePrefix}Melee{endPrefix}. Fire tall sword projection that slices through for {damagePrefix}{FireTallSword.damageCoefficient * 100f}% base damage{endPrefix}.");
+            AddLanguageToken(Assets.SwordPillar.skillDescriptionToken, $"{damagePrefix}Melee{endPrefix}. Fire tall sword projection that slices through enemies for {damagePrefix}{FireTallSword.damageCoefficient * 100f}% base damage{endPrefix}.");
         }
         public static void InitParry()
         {
@@ -114,7 +129,7 @@ namespace Demolisher
         }
         public static void InitDetonate()
         {
-            AddLanguageToken(Assets.Detonate.skillNameToken, "Detonate Traps");
+            AddLanguageToken(Assets.Detonate.skillNameToken, "Detonate");
             AddLanguageToken(Assets.Detonate.skillDescriptionToken, $"Detonates all placed traps.");
         }
         public static void InitWhirlwind()
