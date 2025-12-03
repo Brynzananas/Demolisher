@@ -90,7 +90,7 @@ namespace Demolisher
         public static void InitBoots()
         {
             AddLanguageToken(Assets.Boots.skillNameToken, BootsName);
-            AddLanguageToken(Assets.Boots.skillDescriptionToken, $"{damagePrefix}Heavy{endPrefix}. Negates fall damage. Landing with enough velocity will create an explosion, dealing {damagePrefix}{Hooks.stompBaseDamageCoefficient * 100f}% base damage{endPrefix}.");
+            AddLanguageToken(Assets.Boots.skillDescriptionToken, $"{damagePrefix}Heavy{endPrefix}. Negates fall damage. Landing with enough velocity will create an explosion, dealing {damagePrefix}{Hooks.stompBaseDamageCoefficient * 100f}% base damage{endPrefix}. Press jump button while midair to pull yourself down.");
         }
         public static void InitGrenadeLauncher()
         {

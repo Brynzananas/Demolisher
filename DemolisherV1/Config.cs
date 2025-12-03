@@ -13,6 +13,7 @@ namespace Demolisher
     {
         public static void Init()
         {
+            VisualsConfig.Init();
             SharpnessConfig.Init();
             SoftnessConfig.Init();
             ChaosConfig.Init();
@@ -29,6 +30,33 @@ namespace Demolisher
             FlyConfig.Init();
             LaserConfig.Init();
         }
+    }
+    public static class VisualsConfig
+    {
+        public const string name = "Visuals";
+        public static void Init()
+        {
+            Aura = CreateConfig(name, "Devil Mesh Trail", true, "");
+            FeetSmoke = CreateConfig(name, "Rocketjump Feet Smoke", true, "");
+            ExplosionLight = CreateConfig(name, "Explosion Light", true, "");
+            ExplosionShake = CreateConfig(name, "Explosion Shake", true, "");
+            LobbyPillar = CreateConfig(name, "Demolisher Lobby Pillar", true, "");
+            LobbyRed = CreateConfig(name, "Demolisher Lobby Red Ambient", true, "");
+            //DemolisherBooleanConfigComponent[] explosionConfigs = Assets.Explosion.prefab.GetComponents<DemolisherBooleanConfigComponent>();
+            //for (int i = 0; i < explosionConfigs.Length; i++)
+            //{
+            //    DemolisherBooleanConfigComponent demolisherBooleanConfigComponent = explosionConfigs[i];
+            //    demolisherBooleanConfigComponent.config = i == 0 ? ExplosionLight : ExplosionShake;
+            //}
+            //DemolisherBooleanConfigComponent feetSmokeConfig = Assets.FeetEffect.GetComponent<DemolisherBooleanConfigComponent>();
+            //feetSmokeConfig.config = FeetSmoke;
+        }
+        public static ConfigEntry<bool> Aura;
+        public static ConfigEntry<bool> FeetSmoke;
+        public static ConfigEntry<bool> ExplosionLight;
+        public static ConfigEntry<bool> ExplosionShake;
+        public static ConfigEntry<bool> LobbyPillar;
+        public static ConfigEntry<bool> LobbyRed;
     }
     public static class SharpnessConfig
     {
@@ -94,6 +122,7 @@ namespace Demolisher
             stompVelocityRadiusMultiplier = CreateConfig(BootsName, SpeedRadiusName, 0.2f, "");
             stompForce = CreateConfig(BootsName, ForceName, 100f, "");
             stompFalloff = CreateConfig(BootsName, BlastFalloffName, BlastAttack.FalloffModel.Linear, "");
+            pullStrength = CreateConfig(BootsName, "Pull Strength", 1f, "");
             stompNeededVelocity.SettingChanged += OnConfigChanged;
             stompBaseDamageCoefficient.SettingChanged += OnConfigChanged;
             stompVelocityDamageCoefficient.SettingChanged += OnConfigChanged;
@@ -102,6 +131,7 @@ namespace Demolisher
             stompVelocityRadiusMultiplier.SettingChanged += OnConfigChanged;
             stompForce.SettingChanged += OnConfigChanged;
             stompFalloff.SettingChanged += OnConfigChanged;
+            pullStrength.SettingChanged += OnConfigChanged;
         }
         private static void OnConfigChanged(object sender, EventArgs e) => Language.InitBoots();
         public static ConfigEntry<float> stompNeededVelocity;
@@ -112,6 +142,7 @@ namespace Demolisher
         public static ConfigEntry<float> stompVelocityRadiusMultiplier;
         public static ConfigEntry<BlastAttack.FalloffModel> stompFalloff;
         public static ConfigEntry<float> stompProcCoefficient;
+        public static ConfigEntry<float> pullStrength;
     }
     public static class MediumMeleeAttackConfig
     {
@@ -119,17 +150,20 @@ namespace Demolisher
         {
             damageCoefficient = CreateConfig(MediumMeleeAttackName, DamageCoefficientName, 3f, "");
             procCoefficient = CreateConfig(MediumMeleeAttackName, ProcCoefficientName, 1f, "");
-            baseDuration = CreateConfig(MediumMeleeAttackName, DurationName, 0.2f, "");
+            baseDuration = CreateConfig(MediumMeleeAttackName, DurationName, 0.3f, "");
             baseAttackDuration = CreateConfig(MediumMeleeAttackName, AttackDurationName, 0.3f, "");
             radius = CreateConfig(MediumMeleeAttackName, RadiusName, 3f, "");
-            maxDistance = CreateConfig(MediumMeleeAttackName, RangeName, 9f, "");
+            maxDistance = CreateConfig(MediumMeleeAttackName, RangeName, 16f, "");
+            hitJump = CreateConfig(MediumMeleeAttackName, "Vertical Velocity on Hit", 1f, "");
+            force = CreateConfig(MediumMeleeAttackName, ForceName, 500f, "");
             damageCoefficient.SettingChanged += OnConfigChanged;
             procCoefficient.SettingChanged += OnConfigChanged;
             baseDuration.SettingChanged += OnConfigChanged;
             baseAttackDuration.SettingChanged += OnConfigChanged;
             radius.SettingChanged += OnConfigChanged;
             maxDistance.SettingChanged += OnConfigChanged;
-            force = CreateConfig(MediumMeleeAttackName, ForceName, 500f, "");
+            hitJump.SettingChanged += OnConfigChanged;
+            force.SettingChanged += OnConfigChanged;
         }
         private static void OnConfigChanged(object sender, EventArgs e) => Language.InitMediumMelee();
         public static ConfigEntry<float> damageCoefficient;
@@ -139,6 +173,7 @@ namespace Demolisher
         public static ConfigEntry<float> radius;
         public static ConfigEntry<float> force;
         public static ConfigEntry<float> maxDistance;
+        public static ConfigEntry<float> hitJump;
     }
     public static class FireGrenadeConfig
     {
@@ -262,11 +297,11 @@ namespace Demolisher
     {
         public static void Init()
         {
-            bulletDamageCoefficient = CreateConfig(CollapseName, BulletName + " " + DamageCoefficientName, 15f, "");
+            bulletDamageCoefficient = CreateConfig(CollapseName, BulletName + " " + DamageCoefficientName, 5f, "");
             bulletProcCoefficient = CreateConfig(CollapseName, BulletName + " " + ProcCoefficientName, 1f, "");
             bulletForce = CreateConfig(CollapseName, BulletName + " " + ForceName, 1000f, "");
             bulletRadius = CreateConfig(CollapseName, BulletName + " " + RadiusName, 2f, "");
-            explosionDamageCoefficient = CreateConfig(CollapseName, ExplosionName + " " + DamageCoefficientName, 15f, "");
+            explosionDamageCoefficient = CreateConfig(CollapseName, ExplosionName + " " + DamageCoefficientName, 5f, "");
             explosionProcCoefficient = CreateConfig(CollapseName, ExplosionName + " " + ProcCoefficientName, 15f, "");
             explosionForce = CreateConfig(CollapseName, ExplosionName + " " + ForceName, 1000f, "");
             explosionRadius = CreateConfig(CollapseName, ExplosionName + " " + RadiusName, 24f, "");
@@ -404,12 +439,12 @@ namespace Demolisher
     {
         public static void Init()
         {
-            damageCoefficient = CreateConfig(LaserName, DamageCoefficientName, 0.5f, "");
+            damageCoefficient = CreateConfig(LaserName, DamageCoefficientName, 1f, "");
             procCoefficient = CreateConfig(LaserName, ProcCoefficientName, 1f, "");
             hitInterval = CreateConfig(LaserName, "Hit Interval", 0.1f, "");
             force = CreateConfig(LaserName, ForceName, 0f, "");
-            range = CreateConfig(LaserName, RangeName, 128f, "");
-            radius = CreateConfig(LaserName, RadiusName, 3f, "");
+            range = CreateConfig(LaserName, RangeName, 512f, "");
+            radius = CreateConfig(LaserName, RadiusName, 1.5f, "");
             damageCoefficient.SettingChanged += OnConfigChanged;
             procCoefficient.SettingChanged += OnConfigChanged;
             hitInterval.SettingChanged += OnConfigChanged;

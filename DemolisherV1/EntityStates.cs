@@ -53,6 +53,7 @@ namespace Demolisher
         public GenericSkill secondarySkill => skillLocator && skillLocator.secondary ? skillLocator.secondary : null;
         public GenericSkill specialSkill => skillLocator && skillLocator.special ? skillLocator.special : null;
         public DemolisherComponent demolisherComponent;
+        public bool canSwapBySprint => characterBody.HasModdedBodyFlag(BrynzaAPI.Assets.SprintAllTime);
         public override void OnEnter()
         {
             base.OnEnter();
@@ -66,41 +67,49 @@ namespace Demolisher
                 InputBankTest.ButtonState utilityButtonState = inputBank.skill3;
                 InputBankTest.ButtonState secondaryButtonState = inputBank.skill2;
                 InputBankTest.ButtonState specialButtonState = inputBank.skill4;
-                if (utilityButtonState.justPressed)
+                //if (inputBank.sprint.justReleased && CanExecuteSkill(utilitySkill) && utilitySkill.ExecuteIfReady()) utilityButtonState.hasPressBeenClaimed = true;
+                if (canSwapBySprint)
                 {
-                    StartSwapping();
-                    fireUtilitySkill = false;
-                    swapped = false;
-                    swapping = true;
+                    if (inputBank.sprint.justPressed) SwapWeapons();
                 }
-                if (swapping && (secondaryButtonState.justPressed || specialButtonState.justPressed))
+                else
                 {
-                    swapped = true;
-                    SwapWeapons();
-                }
-                if (utilityButtonState.justReleased)
-                {
-                    swapping = false;
-                    if (!swapped) fireUtilitySkill = true;
-                    StopSwapping();
-                    if (utilitySkill)
+                    if (utilityButtonState.justPressed)
                     {
-                        if (CanExecuteSkill(utilitySkill) && utilitySkill.ExecuteIfReady()) utilityButtonState.hasPressBeenClaimed = true;
+                        StartSwapping();
+                        fireUtilitySkill = false;
+                        swapped = false;
+                        swapping = true;
+                    }
+                    if (swapping && (secondaryButtonState.justPressed || specialButtonState.justPressed))
+                    {
+                        swapped = true;
+                        SwapWeapons();
+                    }
+                    if (utilityButtonState.justReleased)
+                    {
+                        swapping = false;
+                        if (!swapped) fireUtilitySkill = true;
+                        StopSwapping();
+                        if (utilitySkill)
+                        {
+                            if (CanExecuteSkill(utilitySkill) && utilitySkill.ExecuteIfReady()) utilityButtonState.hasPressBeenClaimed = true;
+                        }
                     }
                 }
             }
         }
-        public void StartSwapping()
+        public virtual void StartSwapping()
         {
 
         }
-        public void StopSwapping()
+        public virtual void StopSwapping()
         {
 
         }
         public override bool CanExecuteSkill(GenericSkill skillSlot)
         {
-            if (skillSlot)
+            if (!canSwapBySprint && skillSlot)
             {
                 if (utilitySkill && skillSlot == utilitySkill && !fireUtilitySkill) return false;
                 if (swapping && (skillSlot == secondarySkill || skillSlot == specialSkill)) return false;
@@ -252,7 +261,7 @@ namespace Demolisher
         public abstract float fuse { get; }
         public virtual void FireProjectile(Ray ray, float damage, float force, bool crit)
         {
-            StartAimMode(2f, true);
+            StartAimMode(2f, !characterBody.isSprinting);
             if (currentRangedWeaponDef.fireSound != null) Util.PlaySound(currentRangedWeaponDef.fireSound, gameObject);
             if (skillLocator && skillLocator.primary == activatorSkillSlot)
             {
@@ -399,7 +408,11 @@ namespace Demolisher
         public static float force => FireGrenadeConfig.force.Value;
         public static float maxCharge = 1f;
         public float charge;
-
+        public override void OnEnter()
+        {
+            base.OnEnter();
+            Util.PlaySound("Play_loose_cannon_charge", gameObject);
+        }
         public override void FixedUpdate()
         {
             base.FixedUpdate();
@@ -413,6 +426,7 @@ namespace Demolisher
         public override void OnExit()
         {
             base.OnExit();
+            Util.PlaySound("Stop_loose_cannon_charge", gameObject);
             if (demolisherComponent) demolisherComponent.overrideGeneralMeter = 1f;
         }
         public override InterruptPriority GetMinimumInterruptPriority()
@@ -464,6 +478,7 @@ namespace Demolisher
         public static float radius => MediumMeleeAttackConfig.radius.Value;
         public static float force => MediumMeleeAttackConfig.force.Value;
         public static float maxDistance => MediumMeleeAttackConfig.maxDistance.Value;
+        public static float hitJump => MediumMeleeAttackConfig.hitJump.Value;
         public static float attackSpeedRampUpRate = 0.25f;
         public static float maxAttackSpeedRampUp = 3f;
         public static float swingUpCrossfade = 0.05f;
@@ -471,6 +486,7 @@ namespace Demolisher
         public static float bufferEmptyTransition = 0.05f;
         public static float effectRotation = 35f;
         public override DamageSource damageSource => GetDamageSource();
+        private bool hitTarget;
         public bool instantSwing;
         public bool step;
         public float duration;
@@ -538,6 +554,7 @@ namespace Demolisher
             firing = true;
             attackDuration = duration;
             UpdateBulletAttack(characterBody.damage * damageCoefficient, procCoefficient, force, RollCrit(), radius, maxDistance, true);
+            hitTarget = false;
             //Vector3 rotationEuler = Util.QuaternionSafeLookRotation(bulletAttack.aimVector).eulerAngles;
             //rotationEuler = new Vector3(rotationEuler.x, rotationEuler.y, rotationEuler.z + (step ? effectRotation : 180f - effectRotation));
             //EffectData effectData = new EffectData
@@ -570,7 +587,7 @@ namespace Demolisher
             if (slash)
             {
                 Ray ray = GetAimRay();
-                slash.transform.position = ray.origin;
+                slash.transform.position = characterBody.aimOrigin;
                 Vector3 vector3 = Quaternion.LookRotation(ray.direction).eulerAngles;
                 vector3.z += step ? -effectRotation : effectRotation;
                 float radius = bulletAttack.radius;
@@ -582,7 +599,56 @@ namespace Demolisher
         public override void OnExit()
         {
             base.OnExit();
-            PlayCrossfade("Gesture, Override", "BufferEmpty", "Slash.playbackRate", bufferEmptyTransition, bufferEmptyTransition);
+            if (!firing) PlayCrossfade("Gesture, Override", "BufferEmpty", "Slash.playbackRate", bufferEmptyTransition, bufferEmptyTransition);
+        }
+        public override void CreateBulletAttack(bool ignoreHitTargets = true)
+        {
+            base.CreateBulletAttack(ignoreHitTargets);
+            bulletAttack.hitCallback += OnHitCallBack;
+        }
+        private bool OnHitCallBack(BulletAttack bulletAttack, ref BulletAttack.BulletHit hitInfo)
+        {
+            if (hitTarget || !hitInfo.hitHurtBox || hitJump <= 0f) return false;
+            HealthComponent healthComponent = hitInfo.hitHurtBox.healthComponent;
+            if (!healthComponent || healthComponent == this.healthComponent) return false;
+            hitTarget = true;
+            float y = hitJump * Physics.gravity.y * -1f;
+            if (characterMotor)
+            {
+                if (characterMotor.isGrounded) return false;
+                if (characterMotor.velocity.y > y)
+                {
+                    y = characterMotor.velocity.y;
+                }
+                else if (characterMotor.velocity.y < 0f)
+                {
+
+                }
+                else
+                {
+                    y = Mathf.Lerp(0f, y, characterMotor.velocity.y);
+                }
+                characterMotor.velocity.y = y;
+            }
+            else if (rigidbody)
+            {
+                if (rigidbody.velocity.y > y)
+                {
+                    y = rigidbody.velocity.y;
+                }
+                else if (rigidbody.velocity.y < 0f)
+                {
+
+                }
+                else
+                {
+                    y = Mathf.Lerp(0f, y, rigidbody.velocity.y);
+                }
+                Vector3 vector3 = rigidbody.velocity;
+                vector3.y = y;
+                rigidbody.velocity = vector3;
+            }
+            return false;
         }
     }
     public class ShieldCharge : BaseMeleeAttack
@@ -641,7 +707,8 @@ namespace Demolisher
             //if (NetworkServer.active)
             ShieldBash();
             previousPosition = characterBody.footPosition;
-            if (fixedAge >= duration && isAuthority) outer.SetNextStateToMain();
+            if (!isAuthority) return;
+            if (inputBank.skill1.justPressed || fixedAge >= duration) outer.SetNextStateToMain();
         }
         public virtual void ShieldBash()
         {
@@ -663,6 +730,7 @@ namespace Demolisher
         public override void OnEnter()
         {
             base.OnEnter();
+            if (NetworkServer.active) characterBody.AddBuff(Assets.InstantMeleeSwing);
             SetValues();
             CreateBulletAttack(true);
             bulletAttack.SetForceMassIsOne(true);
@@ -748,6 +816,7 @@ namespace Demolisher
                     characterMotor.velocity = velocity;
                 }
             }
+            if (inputBank) inputBank.skill1.PushState(true);
         }
         public override InterruptPriority GetMinimumInterruptPriority()
         {
@@ -818,7 +887,10 @@ namespace Demolisher
                 EffectManager.SpawnEffect(Assets.WhirlwindEffect.index, effectData, false);
                 if (activatorSkillSlot) activatorSkillSlot.stock--;
             }
-            direction = Vector3.RotateTowards(direction, inputBank ? inputBank.moveVector : aimDirectionGrounded, degreesPerSecond / 57f * Time.fixedDeltaTime, 0f);
+            Ray ray = GetAimRay();
+            Vector3 vector3 = inputBank ? inputBank.moveVector : ray.direction;
+            vector3.y = ray.direction.y;
+            direction = Vector3.RotateTowards(direction, vector3, degreesPerSecond / 57f * Time.fixedDeltaTime * characterBody.attackSpeed, 0f);
             rotation = Quaternion.AngleAxis(rotationsPerSecond * 360f * Time.fixedDeltaTime, Vector3.up) * rotation;
             if (characterDirection)
             {
@@ -846,11 +918,11 @@ namespace Demolisher
             blastAttack.Fire();
             if (characterMotor)
             {
-                characterMotor.moveDirection = direction;
+                characterMotor.velocity = direction * characterMotor.walkSpeed;
             }
             else if (rigidbody)
             {
-                rigidbody.velocity += direction * characterBody.moveSpeed;
+                rigidbody.velocity = direction * characterBody.moveSpeed;
             }
         }
         public virtual void SetValues()
@@ -874,6 +946,7 @@ namespace Demolisher
                 rootObject = characterBody.mainHurtBox.gameObject,
                 genericFloat = interval
             };
+            if (demolisherModel) demolisherModel.devilCount++;
             EffectManager.SpawnEffect(Assets.WhirlwindEffect.index, effectData, false);
             Util.PlaySound("Play_DemoSwordSwing", gameObject);
             CreateBulletAttack();
@@ -882,6 +955,7 @@ namespace Demolisher
         public override void OnExit()
         {
             base.OnExit();
+            if (demolisherModel) demolisherModel.devilCount--;
             if (animator) animator.SetBool("isSpinning", false);
         }
         public override InterruptPriority GetMinimumInterruptPriority()
@@ -2087,6 +2161,7 @@ namespace Demolisher
         public static float baseDuration = 6f;
         public static float baseShakeAddition = 0.2f;
         public static float visualLaserSmoothTime = 0.05f;
+        public float newHitInterval;
         public Vector3 laserVelocity;
         public float shakeAddition;
         public GameObject laserEffect;
@@ -2101,6 +2176,7 @@ namespace Demolisher
         public override void OnEnter()
         {
             base.OnEnter();
+            newHitInterval = hitInterval / characterBody.attackSpeed;
             PlayAnimation("Gesture, Override", "BufferEmpty");
             StartAimMode(2f, true);
             sfxObject = new GameObject("sfxobject");
@@ -2124,9 +2200,8 @@ namespace Demolisher
             {
                 laserEffect.transform.localScale = new Vector3(radius, radius, range);
             }
-            crit = RollCrit();
             CreateBulletAttack();
-            UpdateBulletAttack(characterBody.damage * damageCoefficient, procCoefficient, force, crit, radius, range, true);
+            UpdateBulletAttack(characterBody.damage * damageCoefficient, procCoefficient, force, RollCrit(), radius, range, true);
             if (!isAuthority) return;
         }
         public override void FixedUpdate()
@@ -2134,10 +2209,11 @@ namespace Demolisher
             base.FixedUpdate();
             ContinueFireMeleeAttack(GetAimRay());
             stopwatch += Time.fixedDeltaTime;
-            if (stopwatch >= hitInterval)
+            if (stopwatch >= newHitInterval)
             {
                 stopwatch = 0f;
-                UpdateBulletAttack(characterBody.damage * damageCoefficient, procCoefficient, force, crit, radius, range, true);
+                UpdateBulletAttack(characterBody.damage * damageCoefficient, procCoefficient, force, RollCrit(), radius, range, true);
+                newHitInterval = hitInterval / characterBody.attackSpeed;
                 if (activatorSkillSlot) activatorSkillSlot.stock--;
             }
             if (!isAuthority) return;

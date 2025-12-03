@@ -1,4 +1,5 @@
-﻿using BrynzaAPI;
+﻿using BepInEx.Configuration;
+using BrynzaAPI;
 using EntityStates;
 using HG;
 using JetBrains.Annotations;
@@ -1194,12 +1195,12 @@ namespace Demolisher
         public new void OnEnable()
         {
             base.OnEnable();
-            modelSkinController.onSkinApplied += OnDemolisherSkinApplied;
+            modelSkinController?.onSkinApplied += OnDemolisherSkinApplied;
         }
         public new void OnDisable()
         {
             base.OnDisable();
-            modelSkinController.onSkinApplied -= OnDemolisherSkinApplied;
+            modelSkinController?.onSkinApplied -= OnDemolisherSkinApplied;
         }
         private void OnDemolisherSkinApplied(int obj)
         {
@@ -1437,17 +1438,18 @@ namespace Demolisher
                 };
                 EffectManager.SpawnEffect(Assets.ChainsExplosion.prefab, effectData, false);
             }
-            if (pillarEffect)
+            if (VisualsConfig.LobbyPillar.Value && pillarEffect)
             {
                 pillar = Instantiate(Assets.PillarEffect, pillarEffect);
                 pillar.transform.localScale = new Vector3(pillarEffectScale, pillarEffectScale, pillarEffectScale);
             }
             uiAlphaDown = true;
-            redAsFuck = Instantiate(Assets.IamRedAsFuck).GetComponent<Image>();
+            if (VisualsConfig.LobbyRed.Value) redAsFuck = Instantiate(Assets.IamRedAsFuck).GetComponent<Image>();
             Util.PlaySound("Play_Demoman_mvm_m_autocappedintelligence02", gameObject);
         }
         public void Update()
         {
+            if (!VisualsConfig.LobbyRed.Value) return;
             if (redAsFuck)
             {
                 Color color = redAsFuck.color;
@@ -1648,13 +1650,14 @@ namespace Demolisher
         public SkinnedMeshRenderer skinnedMeshRenderer;
         public CharacterMotor characterMotor;
         public float interval = 0.1f;
+        public bool applyLossyScale;
         private float stopwatch;
         public void Update()
         {
             stopwatch += Time.deltaTime;
             if (stopwatch >= interval)
             {
-                if (skinnedMeshRenderer && skinnedMeshRenderer.enabled && skinnedMeshRenderer.gameObject.activeSelf && skinnedMeshRenderer.sharedMesh) AddAura();
+                if (VisualsConfig.Aura.Value && skinnedMeshRenderer && skinnedMeshRenderer.enabled && skinnedMeshRenderer.gameObject.activeSelf && skinnedMeshRenderer.sharedMesh) AddAura();
                 stopwatch = 0f;
             }
         }
@@ -1663,7 +1666,7 @@ namespace Demolisher
             GameObject gameObject = Instantiate(Assets.Aura);
             gameObject.transform.position = transform.position;
             gameObject.transform.rotation = transform.rotation;
-            gameObject.transform.localScale = transform.localScale;
+            gameObject.transform.localScale = applyLossyScale ? transform.lossyScale : transform.localScale;
             DemolisherAuraMesh demolisherAuraMesh = gameObject.GetComponent<DemolisherAuraMesh>();
             if (demolisherAuraMesh)
             {
@@ -1672,6 +1675,7 @@ namespace Demolisher
                 {
                     demolisherAuraMesh.meshRenderer.materials = skinnedMeshRenderer.materials;
                     demolisherAuraMesh.meshRenderer.sharedMaterials = skinnedMeshRenderer.sharedMaterials;
+                    demolisherAuraMesh.meshRenderer.bounds = skinnedMeshRenderer.bounds;
                 }
                 demolisherAuraMesh.direction = transform.forward * -1f;
             }
@@ -1767,6 +1771,97 @@ namespace Demolisher
             public string path;
             public string emotePath;
             public ParticleSystem particleSystem;
+        }
+    }
+    public abstract class DemolisherConfigComponent<T> : MonoBehaviour where T : ConfigEntryBase
+    {
+        [SerializeField] public T config;
+    }
+    public class DemolisherBooleanConfigComponent : DemolisherConfigComponent<ConfigEntry<bool>>
+    {
+        public UnityEvent<bool> onConfigChanged;
+        public string section;
+        public string key;
+        public void Awake()
+        {
+            if (DemolisherPlugin.configFile.TryGetEntry(section, key, out config))
+            {
+                config.SettingChanged += Config_SettingChanged;
+                onConfigChanged?.Invoke(config.Value);
+            }
+        }
+        public void OnDestroy()
+        {
+            config?.SettingChanged -= Config_SettingChanged;
+        }
+        private void Config_SettingChanged(object sender, EventArgs e) => onConfigChanged?.Invoke(config.Value);
+    }
+    public class DemolisherAimAnimator : MonoBehaviour
+    {
+        public static float smoothTime = 0.05f;
+        public static float pitchToRollCoof = 90f;
+        public InputBankTest inputBankTest;
+        public AimTransform[] transforms;
+        public float aimX;
+        public float aimY;
+        public float transformX;
+        public float transformY;
+        public float difX;
+        public float difY;
+        public float difZ;
+        public void LateUpdate()
+        {
+            if (!inputBankTest || transforms == null) return;
+            Vector3 vector3 = Quaternion.LookRotation(inputBankTest.aimDirection).eulerAngles;
+            Vector3 vector33 = Quaternion.AngleAxis(90f, transform.up) * inputBankTest.aimDirection;
+            vector33.y = 0f;
+            vector33.Normalize();
+            Vector3 localEulerAngles = transform.eulerAngles;
+            float yDif = vector3.y - localEulerAngles.y;
+            float xDif = vector3.x - localEulerAngles.x;
+            if (yDif >= 180f)
+            {
+                yDif -= 360f;
+            }
+            else if (yDif <= -180f)
+            {
+                yDif += 360f;
+            }
+            if (xDif >= 180f)
+            {
+                xDif -= 360f;
+            }
+            else if (xDif <= -180f)
+            {
+                xDif += 360f;
+            }
+            aimX = vector3.x;
+            aimY = vector3.y;
+            transformY = localEulerAngles.y;
+            transformX = localEulerAngles.x;
+            difX = xDif;
+            difY = yDif;
+            for (int i = 0; i < transforms.Length; i++)
+            {
+                AimTransform aimTransform = transforms[i];
+                Transform transform = aimTransform.transform;
+                transform.forward = Vector3.RotateTowards(transform.forward, inputBankTest.aimDirection);
+                float y = transform.eulerAngles.y + yDif * aimTransform.yawWeight;
+                float x = transform.eulerAngles.x + xDif * aimTransform.pitchWeight;
+                Vector3 vector31 = transform.eulerAngles;
+                vector31.y = y;
+                vector31.x = x;
+                transform.eulerAngles = vector31;
+            }
+        }
+        [Serializable]
+        public struct AimTransform
+        {
+            public Transform transform;
+            public float yawWeight;
+            internal float yawVelocity;
+            public float pitchWeight;
+            internal float pitchVelocity;
         }
     }
     public abstract class DemolisherWeaponDef : ScriptableObject

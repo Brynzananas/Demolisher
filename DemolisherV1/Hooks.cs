@@ -128,8 +128,26 @@ namespace Demolisher
             //On.RoR2.TeleporterInteraction.IdleToChargingState.OnEnter += IdleToChargingState_OnEnter;
             Stage.onStageStartGlobal += Stage_onStageStartGlobal;
             On.RoR2.CharacterMotor.OnGroundHit += CharacterMotor_OnGroundHit;
+            On.RoR2.CharacterMotor.ModifyGravity += CharacterMotor_ModifyGravity;
             SceneDirector.onPrePopulateSceneServer += SceneDirector_onPrePopulateSceneServer;
         }
+        public static float BootsPullStrength => BootsConfig.pullStrength.Value;
+        public static float timeUntilCanPull = 0.5f;
+        private static void CharacterMotor_ModifyGravity(On.RoR2.CharacterMotor.orig_ModifyGravity orig, CharacterMotor self, ref float verticalVelocity, ref float gravity, float deltaTime)
+        {
+            if (!self.isGrounded && self.lastGroundedTime.t + timeUntilCanPull <= Run.FixedTimeStamp.now.t)
+            {
+                CharacterBody characterBody = self.body;
+                InputBankTest inputBankTest = characterBody?.inputBank;
+                if (inputBankTest && inputBankTest.jump.down)
+                {
+                    Inventory inventory = characterBody?.inventory;
+                    if (inventory.GetItemCountEffective(Assets.BootsPassive) > 0) verticalVelocity -= BootsPullStrength * deltaTime;
+                }
+            }
+            orig(self, ref verticalVelocity, ref gravity, deltaTime);
+        }
+
         public static float DemolisherFuelCellArrayCreditsReduction = 0.2f;
         private static void SceneDirector_onPrePopulateSceneServer(SceneDirector obj)
         {

@@ -174,12 +174,19 @@ namespace Demolisher
             CameraTargetParams cameraTargetParams = DemolisherBody.GetComponent<CameraTargetParams>();
             cameraTargetParams.cameraParams = Addressables.LoadAssetAsync<CharacterCameraParams>("RoR2/Base/Common/ccpStandard.asset").WaitForCompletion();
             DemolisherCharacterBody = DemolisherBody.GetComponent<CharacterBody>();
+            DemolisherCharacterBody.AddModdedBodyFlag(BrynzaAPI.Assets.SprintAllTime);
             DemolisherCharacterBody.preferredPodPrefab = DemolisherElevator; //LegacyResourcesAPI.Load<GameObject>("Prefabs/NetworkedObjects/SurvivorPod");//Addressables.LoadAssetAsync<GameObject>("RoR2/Base/SurvivorPod/SurvivorPod.prefab").WaitForCompletion();
             DemolisherCharacterBody._defaultCrosshairPrefab = LegacyResourcesAPI.Load<GameObject>("Prefabs/Crosshair/SimpleDotCrosshair");// Addressables.LoadAssetAsync<GameObject>("RoR2/Base/UI/StandardCrosshair.prefab").WaitForCompletion();
             CharacterMotor characterMotor = DemolisherCharacterBody.GetComponent<CharacterMotor>();
             //characterMotor.SetAirControlFromVelocityAdd(15f);
             //DemolisherCharacterBody.vehicleIdleStateMachine = Array.Empty<EntityStateMachine>();
             GameObject gameObject = DemolisherBody.GetComponent<ModelLocator>().modelTransform.gameObject;
+            AimAnimator aimAnimator = gameObject.GetComponent<AimAnimator>();
+            if (aimAnimator)
+            {
+                aimAnimator.SetPitchClipCycleStart(-1f);
+                aimAnimator.SetYawClipCycleStart(-1f);
+            }
             gameObject.GetComponent<FootstepHandler>().footstepDustPrefab = LegacyResourcesAPI.Load<GameObject>("Prefabs/GenericFootstepDust");//Addressables.LoadAssetAsync<GameObject>("RoR2/Base/Common/VFX/GenericFootstepDust.prefab").WaitForCompletion();
             ModelSkinController modelSkinController = gameObject.GetComponent<ModelSkinController>();
             if (modelSkinController)
