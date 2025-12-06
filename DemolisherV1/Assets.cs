@@ -181,12 +181,12 @@ namespace Demolisher
             //characterMotor.SetAirControlFromVelocityAdd(15f);
             //DemolisherCharacterBody.vehicleIdleStateMachine = Array.Empty<EntityStateMachine>();
             GameObject gameObject = DemolisherBody.GetComponent<ModelLocator>().modelTransform.gameObject;
-            AimAnimator aimAnimator = gameObject.GetComponent<AimAnimator>();
-            if (aimAnimator)
-            {
-                aimAnimator.SetPitchClipCycleStart(-1f);
-                aimAnimator.SetYawClipCycleStart(-1f);
-            }
+            //AimAnimator aimAnimator = gameObject.GetComponent<AimAnimator>();
+            //if (aimAnimator)
+            //{
+            //    aimAnimator.SetPitchClipCycleStart(-1f);
+            //    aimAnimator.SetYawClipCycleStart(-1f);
+            //}
             gameObject.GetComponent<FootstepHandler>().footstepDustPrefab = LegacyResourcesAPI.Load<GameObject>("Prefabs/GenericFootstepDust");//Addressables.LoadAssetAsync<GameObject>("RoR2/Base/Common/VFX/GenericFootstepDust.prefab").WaitForCompletion();
             ModelSkinController modelSkinController = gameObject.GetComponent<ModelSkinController>();
             if (modelSkinController)
@@ -295,6 +295,7 @@ namespace Demolisher
             Aura = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Effects/DemolisherAura.prefab");
             CrosshairMeleeSprite = assetBundle.LoadAsset<Sprite>("Assets/Demoman/UI/DemoSwordIndicatorThinHalf2.png");
             CrosshairRangedSprite = assetBundle.LoadAsset<Sprite>("Assets/Demoman/UI/DemoStickyIndicatorThinHalf2.png");
+            DemolisherCharacterBody.SetCustomSprintIcon(Parry.icon);
             SharpnessWeapon = Sharpness.RegisterWeapon<DemolisherWeaponSkillDef, DemolisherBulletAttackWeaponDef>(null, null);
             SharpnessWeapon.moddedDamageTypes = [SharpnessDamageType];
             SoftnessWeapon = Softness.RegisterWeapon<DemolisherWeaponSkillDef, DemolisherBulletAttackWeaponDef>(null, null);

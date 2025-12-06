@@ -4,7 +4,7 @@
 		<TargetFramework>netstandard2.1</TargetFramework>
 		<LangVersion>preview</LangVersion>
 		<ReferenceOutputAssembly>false</ReferenceOutputAssembly>
-		<BaseOutputPath>C:\Users\1\AppData\Roaming\com.kesomannen.gale\riskofrain2\profiles\Default2\BepInEx\plugins\DemomanRor2</BaseOutputPath>
+		<BaseOutputPath>D:\r2modman\RiskOfRain2\profiles\my_mod\BepInEx\plugins\DemomanRor2</BaseOutputPath>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -26,15 +26,15 @@
 		<PackageReference Include="Rune580.Mods.RiskOfRain2.RiskOfOptions" Version="2.8.2" />
 		<Reference Include="Brynzananas-BrynzaAPI">
 			<Private>false</Private>
-			<HintPath>C:\Users\1\AppData\Roaming\com.kesomannen.gale\riskofrain2\profiles\Default2\BepInEx\plugins\BrynzaAPI\Debug\netstandard2.1\BrynzaAPI.dll</HintPath>
+			<HintPath>D:\r2modman\RiskOfRain2\profiles\my_mod\BepInEx\plugins\BrynzaAPI\Debug\netstandard2.1\BrynzaAPI.dll</HintPath>
 		</Reference>
 		<Reference Include="UnityEngine-PostProcessing">
 			<Private>false</Private>
-			<HintPath>C:\Program Files (x86)\Steam\steamapps\common\Risk of Rain 2\Risk of Rain 2_Data\Managed\Unity.Postprocessing.Runtime.dll</HintPath>
+			<HintPath>D:\SteamLibrary\steamapps\common\Risk of Rain 2\Risk of Rain 2_Data\Managed\Unity.Postprocessing.Runtime.dll</HintPath>
 		</Reference>
 		<Reference Include="MetrosexualFruitcake-CustomEmotesAPI">
 			<Private>false</Private>
-			<HintPath>C:\Users\1\Downloads\MetrosexualFruitcake-CustomEmotesAPI-2.10.5\CustomEmotesAPI.dll</HintPath>
+			<HintPath>D:\r2modman\RiskOfRain2\profiles\my_mod\BepInEx\plugins\MetrosexualFruitcake-CustomEmotesAPI\CustomEmotesAPI.dll</HintPath>
 		</Reference>
 	</ItemGroup>
 	

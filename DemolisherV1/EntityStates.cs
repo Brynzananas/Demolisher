@@ -46,6 +46,7 @@ namespace Demolisher
     }
     public class DemolisherMainState : GenericCharacterMain
     {
+        public static float spread = 1.5f;
         public bool fireUtilitySkill;
         public bool swapped;
         public bool swapping;
@@ -119,6 +120,7 @@ namespace Demolisher
         public void SwapWeapons()
         {
             if (demolisherComponent == null) return;
+            characterBody.AddSpreadBloom(spread);
             demolisherComponent.CallSwapWeapons();
         }
     }
@@ -254,6 +256,8 @@ namespace Demolisher
     }
     public abstract class BaseProjectileAttack : DemolisherBaseState
     {
+        public static float recoil = 1f;
+        public static float spread = 1.5f;
         public abstract float damageCoefficient { get; }
         public abstract float force { get; }
         public GameObject projectile => currentRangedWeaponDef ? currentRangedWeaponDef.projectile : Assets.GrenadeProjectile;
@@ -261,6 +265,8 @@ namespace Demolisher
         public abstract float fuse { get; }
         public virtual void FireProjectile(Ray ray, float damage, float force, bool crit)
         {
+            AddRecoil(-recoil, -recoil, 0f, 0f);
+            characterBody.AddSpreadBloom(spread);
             StartAimMode(2f, !characterBody.isSprinting);
             if (currentRangedWeaponDef.fireSound != null) Util.PlaySound(currentRangedWeaponDef.fireSound, gameObject);
             if (skillLocator && skillLocator.primary == activatorSkillSlot)
@@ -479,11 +485,13 @@ namespace Demolisher
         public static float force => MediumMeleeAttackConfig.force.Value;
         public static float maxDistance => MediumMeleeAttackConfig.maxDistance.Value;
         public static float hitJump => MediumMeleeAttackConfig.hitJump.Value;
+        public static float recoil = 1f;
+        public static float spread = 1.5f;
         public static float attackSpeedRampUpRate = 0.25f;
         public static float maxAttackSpeedRampUp = 3f;
-        public static float swingUpCrossfade = 0.05f;
+        public static float swingUpCrossfade = 0.2f;
         public static float swingDownCrossfade = 0.05f;
-        public static float bufferEmptyTransition = 0.05f;
+        public static float bufferEmptyTransition = 0.2f;
         public static float effectRotation = 35f;
         public override DamageSource damageSource => GetDamageSource();
         private bool hitTarget;
@@ -504,7 +512,7 @@ namespace Demolisher
             //if (!effectTransform) effectTransform = characterBody.coreTransform;
             SetValues();
             CreateBulletAttack();
-            PlayCrossfade("Gesture, Override", "SwingUp1", "Slash.playbackRate", duration, swingUpCrossfade);
+            PlayCrossfade("Gesture, Override", "SwingUp1", "Slash.playbackRate", duration, swingUpCrossfade / characterBody.attackSpeed);
         }
         public virtual void SetValues()
         {
@@ -570,6 +578,8 @@ namespace Demolisher
             demolisherSlash.Init(1f / duration);
             PlayCrossfade("Gesture, Override", step ? "SwingDown2" : "SwingDown1", "Slash.playbackRate", duration, swingDownCrossfade);
             Util.PlaySound("Play_DemoSwordSwing", gameObject);
+            AddRecoil(recoil, recoil, step ? recoil : -recoil, step ? recoil : -recoil);
+            characterBody.AddSpreadBloom(spread);
             //slash.Init(45f, false, bulletAttack.radius, bulletAttack.maxDistance, duration * 2f);
             stopwatch = 0f;
             step = !step;
@@ -610,7 +620,7 @@ namespace Demolisher
         {
             if (hitTarget || !hitInfo.hitHurtBox || hitJump <= 0f) return false;
             HealthComponent healthComponent = hitInfo.hitHurtBox.healthComponent;
-            if (!healthComponent || healthComponent == this.healthComponent) return false;
+            if (!healthComponent || healthComponent == this.healthComponent || !healthComponent.alive) return false;
             hitTarget = true;
             float y = hitJump * Physics.gravity.y * -1f;
             if (characterMotor)
@@ -626,7 +636,7 @@ namespace Demolisher
                 }
                 else
                 {
-                    y = Mathf.Lerp(0f, y, characterMotor.velocity.y);
+                    y = Mathf.Lerp(y, 0f, characterMotor.velocity.y / y);
                 }
                 characterMotor.velocity.y = y;
             }
@@ -642,7 +652,7 @@ namespace Demolisher
                 }
                 else
                 {
-                    y = Mathf.Lerp(0f, y, rigidbody.velocity.y);
+                    y = Mathf.Lerp(y, 0f, rigidbody.velocity.y / y);
                 }
                 Vector3 vector3 = rigidbody.velocity;
                 vector3.y = y;
@@ -1157,6 +1167,7 @@ namespace Demolisher
         public static float explosionRadius => CollapseConfig.explosionRadius.Value;
         public static float selfForce => CollapseConfig.selfForce.Value;
         public static float selfForceGrounded => CollapseConfig.selfForceGrounded.Value;
+        public static float spread = 1.5f;
         public static float fireAnimationDuration = 0.5f;
         public static float crossfade = 0.05f;
         public override void OnEnter()
@@ -1167,15 +1178,16 @@ namespace Demolisher
         public void Fire()
         {
             if (demolisherModel) demolisherModel.AddTimedDevilCount(fireAnimationDuration / attackSpeedStat);
+            characterBody.AddSpreadBloom(spread);
             StartAimMode(2f, true);
             PlayCrossfade("Gesture, Override", "FireChest", "Slash.playbackRate", fireAnimationDuration / attackSpeedStat, crossfade);
             Util.PlaySound("Play_tacky_grenadier_shoot_crit", gameObject);
-            ChildLocator childLocator = modelLocator && modelLocator.modelTransform ? modelLocator.modelTransform.GetComponent<ChildLocator>() : null;
-            if (childLocator)
-            {
-                Transform power = childLocator.FindChild("PowerL");
-                if (power) power.gameObject.SetActive(false);
-            }
+            //ChildLocator childLocator = modelLocator && modelLocator.modelTransform ? modelLocator.modelTransform.GetComponent<ChildLocator>() : null;
+            //if (childLocator)
+            //{
+            //    Transform power = childLocator.FindChild("PowerL");
+            //    if (power) power.gameObject.SetActive(false);
+            //}
             if (isAuthority)
             {
                 Ray ray = GetAimRay();
@@ -1399,6 +1411,8 @@ namespace Demolisher
         public static float baseDuration => FireTallSwordConfig.baseDuration.Value;
         public static float damageCoefficient => FireTallSwordConfig.damageCoefficient.Value;
         public static float force => FireTallSwordConfig.force.Value;
+        public static float recoil = 1f;
+        public static float spread = 1.5f;
         public float duration;
         public bool stateTaken;
         public override void OnEnter()
@@ -1420,6 +1434,8 @@ namespace Demolisher
         {
             if (demolisherModel) demolisherModel.AddTimedDevilCount(0.25f / attackSpeedStat);
             PlayAnimation("Gesture, Override", "GroundSlashFire", "Slash.playbackRate", 0.5f / attackSpeedStat);
+            AddRecoil(-recoil, -recoil, 0f, 0f);
+            characterBody.AddSpreadBloom(spread);
             if (base.isAuthority)
             {
                 //TrajectoryAimAssist.ApplyTrajectoryAimAssist(ref ray, projectile, gameObject, 1f);
@@ -2158,6 +2174,7 @@ namespace Demolisher
         public static float range => LaserConfig.range.Value;
         public static float radius => LaserConfig.radius.Value;
         public static float hitInterval => LaserConfig.hitInterval.Value;
+        public static float spread = 1.5f;
         public static float baseDuration = 6f;
         public static float baseShakeAddition = 0.2f;
         public static float visualLaserSmoothTime = 0.05f;
@@ -2170,6 +2187,7 @@ namespace Demolisher
         public Animator animator;
         private LoopSoundManager.SoundLoopPtr loopPtr;
         private GameObject sfxObject;
+        private Transform chestTransform;
 
         public override DamageSource damageSource => GetDamageSource();
 
@@ -2177,6 +2195,7 @@ namespace Demolisher
         {
             base.OnEnter();
             newHitInterval = hitInterval / characterBody.attackSpeed;
+            chestTransform = FindModelChild("UpperChest");
             PlayAnimation("Gesture, Override", "BufferEmpty");
             StartAimMode(2f, true);
             sfxObject = new GameObject("sfxobject");
@@ -2191,15 +2210,9 @@ namespace Demolisher
                 demolisherModel.shakeWeight += shakeAddition;
             }
             animator = GetModelAnimator();
-            if (animator)
-            {
-                animator.SetBool("isChestFiring", true);
-            }
+            if (animator)  animator.SetBool("isChestFiring", true);
             laserEffect = GameObject.Instantiate(Assets.LaserEffect, characterBody.coreTransform);
-            if (laserEffect)
-            {
-                laserEffect.transform.localScale = new Vector3(radius, radius, range);
-            }
+            if (laserEffect) laserEffect.transform.Find("laser").localScale = new Vector3(radius, radius, range);
             CreateBulletAttack();
             UpdateBulletAttack(characterBody.damage * damageCoefficient, procCoefficient, force, RollCrit(), radius, range, true);
             if (!isAuthority) return;
@@ -2207,6 +2220,7 @@ namespace Demolisher
         public override void FixedUpdate()
         {
             base.FixedUpdate();
+            characterBody.AddSpreadBloom(spread);
             ContinueFireMeleeAttack(GetAimRay());
             stopwatch += Time.fixedDeltaTime;
             if (stopwatch >= newHitInterval)
@@ -2225,6 +2239,7 @@ namespace Demolisher
             StartAimMode(2f, true);
             Ray ray = GetAimRay();
             laserEffect.transform.forward = Vector3.SmoothDamp(laserEffect.transform.forward, ray.direction, ref laserVelocity, visualLaserSmoothTime, float.MaxValue, Time.deltaTime);
+            if (chestTransform) laserEffect.transform.position = chestTransform.position;
         }
         public override void OnExit()
         {

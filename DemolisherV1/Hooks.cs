@@ -135,11 +135,11 @@ namespace Demolisher
         public static float timeUntilCanPull = 0.5f;
         private static void CharacterMotor_ModifyGravity(On.RoR2.CharacterMotor.orig_ModifyGravity orig, CharacterMotor self, ref float verticalVelocity, ref float gravity, float deltaTime)
         {
-            if (!self.isGrounded && self.lastGroundedTime.t + timeUntilCanPull <= Run.FixedTimeStamp.now.t)
+            if (!self.isGrounded && self.body && self.body.GetLastJumpTime().timeSince >= timeUntilCanPull && self.lastGroundedTime.timeSince >= timeUntilCanPull)
             {
                 CharacterBody characterBody = self.body;
                 InputBankTest inputBankTest = characterBody?.inputBank;
-                if (inputBankTest && inputBankTest.jump.down)
+                if (inputBankTest && inputBankTest.jump.down && !inputBankTest.jump.justPressed)
                 {
                     Inventory inventory = characterBody?.inventory;
                     if (inventory.GetItemCountEffective(Assets.BootsPassive) > 0) verticalVelocity -= BootsPullStrength * deltaTime;

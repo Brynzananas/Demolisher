@@ -32,13 +32,15 @@ namespace Demolisher
         public static void InitCharacter()
         {
             AddLanguageToken(Assets.DemolisherCharacterBody.baseNameToken, "Demolisher");
-            AddLanguageToken(Assets.DemolisherCharacterBody.subtitleNameToken, "Reborn Demon");
+            AddLanguageToken(Assets.DemolisherCharacterBody.subtitleNameToken, "Escape of Hell");
             AddLanguageToken(Assets.Demolisher.displayNameToken, "Demolisher");
-            AddLanguageToken(Assets.Demolisher.descriptionToken, "ugh");
+            AddLanguageToken(Assets.Demolisher.descriptionToken, "Demolisher is a powerfull character that can switch between melee and ranged styles at any moment. To switch styles, press sprint button.\r\n\r\nPassive allows Demolisher for harmless landing and quick descent. His explosives have knockback that can be used as a quick position relocation.\r\n\r\nSwords have a small radius of attack, so you must aim at the target you want to hit. They compensate it with their high burst damage and attack speed.\r\n\r\nIn ranged style swords are replaced with sticky trap launcher. On impact they stick to the surface and wait for user input for detonation signal.\r\n\r\nSecondaries give quick damage bursts for both styles.\r\n\r\nCharge can be used to push enemies away and quickly escape from any situation.\r\n\r\nIn ranged style shield charge is replaced with trap detonation.\r\n\r\nSpecials for both styles offer a massive damage output, however they have long recharge cooldown.");
             AddLanguageToken(Assets.Demolisher.mainEndingEscapeFailureFlavorToken, "...and so he left, escaping eternal torment");
             AddLanguageToken(Assets.Demolisher.outroFlavorToken, "...and so he vanished, leaving nothing behind");
             AddLanguageToken("DEMOLISHER_SKILL_WEAPON", "Weapon");
-            AddLanguageToken("DEMOLISHER_SKILL_WEAPON", "Weapon");
+            AddLanguageToken("DEMOLISHER_SKIN_DEMON", "Hell Slave");
+            AddLanguageToken("DEMOLISHER_SKIN_DRILLER", "Driller");
+            AddLanguageToken("DEMOLISHER_SKIN_NUCLEAR", "Metal Gear");
         }
         public static void InitAnchievements()
         {

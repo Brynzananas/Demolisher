@@ -42,6 +42,11 @@ namespace Demolisher
             ExplosionShake = CreateConfig(name, "Explosion Shake", true, "");
             LobbyPillar = CreateConfig(name, "Demolisher Lobby Pillar", true, "");
             LobbyRed = CreateConfig(name, "Demolisher Lobby Red Ambient", true, "");
+            CrosshairRangedPrimaryCounter = CreateConfig(name, "Demolisher Crosshair Ranged Primary Counter", true, "");
+            CrosshairRangedPrimaryCharge = CreateConfig(name, "Demolisher Crosshair Ranged Primary Charge Meter", true, "");
+            CrosshairRangedSecondaryCounter = CreateConfig(name, "Demolisher Crosshair Ranged Secondary Counter", true, "");
+            CrosshairRangedSecondaryCharge = CreateConfig(name, "Demolisher Crosshair Ranged Secondary Charge Meter", true, "");
+            DemolisherVoicelines = CreateConfig(name, "Demolisher Voicelines", true, "");
             //DemolisherBooleanConfigComponent[] explosionConfigs = Assets.Explosion.prefab.GetComponents<DemolisherBooleanConfigComponent>();
             //for (int i = 0; i < explosionConfigs.Length; i++)
             //{
@@ -57,6 +62,11 @@ namespace Demolisher
         public static ConfigEntry<bool> ExplosionShake;
         public static ConfigEntry<bool> LobbyPillar;
         public static ConfigEntry<bool> LobbyRed;
+        public static ConfigEntry<bool> CrosshairRangedPrimaryCounter;
+        public static ConfigEntry<bool> CrosshairRangedPrimaryCharge;
+        public static ConfigEntry<bool> CrosshairRangedSecondaryCounter;
+        public static ConfigEntry<bool> CrosshairRangedSecondaryCharge;
+        public static ConfigEntry<bool> DemolisherVoicelines;
     }
     public static class SharpnessConfig
     {
@@ -114,15 +124,15 @@ namespace Demolisher
     {
         public static void Init()
         {
-            stompNeededVelocity = CreateConfig(BootsName, "Minimum Velocity to Stomp", 48f, "");
+            stompNeededVelocity = CreateConfig(BootsName, "Minimum Velocity to Stomp", 64f, "");
             stompBaseDamageCoefficient = CreateConfig(BootsName, DamageCoefficientName, 1f, "");
-            stompVelocityDamageCoefficient = CreateConfig(BootsName, SpeedDamageCoefficientName, 0.2f, "");
+            stompVelocityDamageCoefficient = CreateConfig(BootsName, SpeedDamageCoefficientName, 0.1f, "");
             stompProcCoefficient = CreateConfig(BootsName, ProcCoefficientName, 1f, "");
             stompBaseRadius = CreateConfig(BootsName, RadiusName, 3f, "");
-            stompVelocityRadiusMultiplier = CreateConfig(BootsName, SpeedRadiusName, 0.2f, "");
+            stompVelocityRadiusMultiplier = CreateConfig(BootsName, SpeedRadiusName, 0.1f, "");
             stompForce = CreateConfig(BootsName, ForceName, 100f, "");
             stompFalloff = CreateConfig(BootsName, BlastFalloffName, BlastAttack.FalloffModel.Linear, "");
-            pullStrength = CreateConfig(BootsName, "Pull Strength", 1f, "");
+            pullStrength = CreateConfig(BootsName, "Pull Strength", 128f, "");
             stompNeededVelocity.SettingChanged += OnConfigChanged;
             stompBaseDamageCoefficient.SettingChanged += OnConfigChanged;
             stompVelocityDamageCoefficient.SettingChanged += OnConfigChanged;
@@ -237,7 +247,7 @@ namespace Demolisher
     {
         public static void Init()
         {
-            damageCoefficient = CreateConfig(WhirlwindMeleeName, DamageCoefficientName, 2f, "");
+            damageCoefficient = CreateConfig(WhirlwindMeleeName, DamageCoefficientName, 3f, "");
             procCoefficient = CreateConfig(WhirlwindMeleeName, ProcCoefficientName, 1f, "");
             maxDistance = CreateConfig(WhirlwindMeleeName, RangeName, 6f, "");
             force = CreateConfig(WhirlwindMeleeName, ForceName, 300f, "");
@@ -297,11 +307,11 @@ namespace Demolisher
     {
         public static void Init()
         {
-            bulletDamageCoefficient = CreateConfig(CollapseName, BulletName + " " + DamageCoefficientName, 5f, "");
+            bulletDamageCoefficient = CreateConfig(CollapseName, BulletName + " " + DamageCoefficientName, 10f, "");
             bulletProcCoefficient = CreateConfig(CollapseName, BulletName + " " + ProcCoefficientName, 1f, "");
             bulletForce = CreateConfig(CollapseName, BulletName + " " + ForceName, 1000f, "");
             bulletRadius = CreateConfig(CollapseName, BulletName + " " + RadiusName, 2f, "");
-            explosionDamageCoefficient = CreateConfig(CollapseName, ExplosionName + " " + DamageCoefficientName, 5f, "");
+            explosionDamageCoefficient = CreateConfig(CollapseName, ExplosionName + " " + DamageCoefficientName, 10f, "");
             explosionProcCoefficient = CreateConfig(CollapseName, ExplosionName + " " + ProcCoefficientName, 15f, "");
             explosionForce = CreateConfig(CollapseName, ExplosionName + " " + ForceName, 1000f, "");
             explosionRadius = CreateConfig(CollapseName, ExplosionName + " " + RadiusName, 24f, "");

@@ -38,19 +38,24 @@ namespace Demolisher
                 if (config is ConfigEntry<float>)
                 {
                     ModSettingsManager.AddOption(new FloatFieldOption(config as ConfigEntry<float>));
+                    return;
                 }
                 if (config is ConfigEntry<bool>)
                 {
                     ModSettingsManager.AddOption(new CheckBoxOption(config as ConfigEntry<bool>));
+                    return;
                 }
                 if (config is ConfigEntry<int>)
                 {
                     ModSettingsManager.AddOption(new IntFieldOption(config as ConfigEntry<int>));
+                    return;
                 }
                 if (config is ConfigEntry<string>)
                 {
                     ModSettingsManager.AddOption(new StringInputFieldOption(config as ConfigEntry<string>));
+                    return;
                 }
+                ModSettingsManager.AddOption(new ChoiceOption(config));
             }
         }
     }

@@ -646,17 +646,23 @@ namespace Demolisher
     [RequireComponent(typeof(ProjectileStickOnImpact))]
     public class DemolisherHook : NetworkBehaviour, IStateSeeker
     {
-        public static float hookPower = 4f;
-        public static float hookAimPower = 4f;
-        public static float hookPower2 = 8f;
+        public static float hookPower = 2f;
+        public static float hookAimPower = 64f;
+        public static float hookPower2 = 16f;
+        public static float hookDistance = 16f;
+        public static float hookDistance2 = 64f;
+        public static float smoothTime = 0.2f;
         public ProjectileController projectileController;
         public ProjectileStickOnImpact projectileStickOnImpact;
+        public Transform startTransform;
         [HideInInspector] public CharacterBody ownerBody;
         [HideInInspector] public InputBankTest ownerInputBank;
         [HideInInspector] [SyncVar] public bool sticked;
         [HideInInspector] public CharacterBody hitBody;
         [HideInInspector] [SyncVar] public float hitRange;
         [HideInInspector] public EntityStateMachine entityStateMachine;
+        [HideInInspector] public Vector3 previousVelocity;
+        private float age;
         private IStateTarget _foundState;
         public IStateSeeker stateSeeker => this;
         public IStateTarget foundState { get => _foundState; set => _foundState = value; }
@@ -682,10 +688,13 @@ namespace Demolisher
         public bool SetEntityStateMachine()
         {
             entityStateMachine = foundState.entityState.outer;
+            CharacterBody characterBody = foundState.entityState.characterBody;
+            if (characterBody) startTransform?.SetParent(characterBody.aimOriginTransform ?? characterBody.coreTransform, false);
             return true;
         }
         public void FixedUpdate()
         {
+            age += Time.fixedDeltaTime;
             if (NetworkServer.active)
             {
                 if (ownerInputBank && entityStateMachine && entityStateMachine.state != foundState) Destroy(gameObject);
@@ -708,12 +717,15 @@ namespace Demolisher
                 }
                 if (hitBody)
                 {
-                    Vector3 vector3 = ((ray.origin + ray.direction * hitRange) - hitBody.corePosition) * hookPower2;
+                    Vector3 vector3 = ((ray.origin + ray.direction * (hookDistance + hitBody.radius)) - hitBody.corePosition) * hookPower2;
                     HandleMovement(hitBody, vector3);
                 }
                 else
                 {
-                    Vector3 vector3 = ((transform.position - ownerBody.corePosition) * hookPower) + (ray.direction * hookAimPower);
+                    Vector3 vector31 = transform.position - ownerBody.corePosition;
+                    float magn = Mathf.Max(vector31.magnitude - hookDistance2, 0f);
+                    vector31.Normalize();
+                    Vector3 vector3 = (vector31 * hookPower * magn) + (ray.direction * hookAimPower);
                     HandleMovement(ownerBody, vector3);
                 }
             }
@@ -721,6 +733,7 @@ namespace Demolisher
         public void HandleMovement(CharacterBody characterBody, Vector3 vector3)
         {
             if (!Util.HasEffectiveAuthority(characterBody.networkIdentity)) return;
+            vector3 = Vector3.Lerp(previousVelocity, vector3, age / smoothTime);
             if (characterBody.characterMotor)
             {
                 characterBody.characterMotor.velocity = vector3;
@@ -736,6 +749,7 @@ namespace Demolisher
             hitBody = projectileStickOnImpact.stuckBody;
             hitRange = ownerBody ? (transform.position - ownerBody.corePosition).magnitude : 0f;
             sticked = true;
+            previousVelocity = hitBody ? hitBody.characterMotor ? hitBody.characterMotor.velocity : (hitBody.rigidbody ? hitBody.rigidbody.velocity : Vector3.zero) : (ownerBody ? (ownerBody.characterMotor ? ownerBody.characterMotor.velocity : (ownerBody.rigidbody ? ownerBody.rigidbody.velocity : Vector3.zero)) : Vector3.zero);
             if (hitBody) RpcOnStick(hitBody.networkIdentity);
         }
         [ClientRpc]
@@ -906,12 +920,28 @@ namespace Demolisher
             }
         }
     }
+    [RequireComponent(typeof(ProjectileExplosion))]
+    public class DemolisherBlastRadiusPreview : MonoBehaviour
+    {
+        public ProjectileExplosion projectileExplosion;
+        public Transform blastRadiusSphereZone;
+        public float smoothTime = 0.2f;
+        private float smoothTimeVelocity;
+        public void Update()
+        {
+            if (!projectileExplosion || !blastRadiusSphereZone) return;
+            float scale = Mathf.SmoothDamp(blastRadiusSphereZone.transform.localScale.x, projectileExplosion.blastRadius, ref smoothTimeVelocity, smoothTime, float.PositiveInfinity, Time.deltaTime);
+            blastRadiusSphereZone.transform.localScale = new Vector3 (scale, scale, scale);
+        }
+    }
     public class DemolisherVoicelinesComponent : NetworkBehaviour
     {
         public static float startTimer = 0.5f;
         public static float endTimer = 1f;
-        public static float voicelineChancePerKill = 5f;
+        public static float voicelineChancePerKill = 1f;
+        public static float blockTime = 16f;
         public float voicelineChance;
+        public Run.FixedTimeStamp lastVoicelineTime = Run.FixedTimeStamp.negativeInfinity;
         public List<PendingVoiceline> pendingVoicelines = [];
         public void OnEnable()
         {
@@ -920,7 +950,6 @@ namespace Demolisher
         private void GlobalEventManager_onCharacterDeathGlobal(DamageReport obj)
         {
             if (obj.victim == null) return;
-            float timer = UnityEngine.Random.Range(startTimer, endTimer);
             if (obj.victim.gameObject == gameObject)
             {
                 PlayVoiceline(VoicelineDef.VoicelineType.Death);
@@ -928,7 +957,8 @@ namespace Demolisher
             }
             if (obj.attacker == null || obj.attacker != gameObject) return;
             voicelineChance += voicelineChancePerKill;
-            if ((!obj.victimIsBoss && !Util.CheckRoll(voicelineChance)) || pendingVoicelines.Count > 0) return;
+            if (!VisualsConfig.DemolisherVoicelines.Value || lastVoicelineTime.timeSince < blockTime || (!obj.victimIsBoss && !Util.CheckRoll(voicelineChance)) || pendingVoicelines.Count > 0) return;
+            float timer = UnityEngine.Random.Range(startTimer, endTimer);
             voicelineChance = 0f;
             ProjectileRemoteDetonation projectileRemoteDetonation = obj.damageInfo.inflictor ? obj.damageInfo.inflictor.GetComponent<ProjectileRemoteDetonation>() : null;
             if (projectileRemoteDetonation)
@@ -982,7 +1012,11 @@ namespace Demolisher
         }
         [ClientRpc]
         public void RpcPlayVoiceline(int voicelineId) => PlayVoiceline(VoicelineDef.voicelineDefs[voicelineId]);
-        public void PlayVoiceline(VoicelineDef voicelineDef) => voicelineDef.Play(gameObject);
+        public void PlayVoiceline(VoicelineDef voicelineDef)
+        {
+            lastVoicelineTime = Run.FixedTimeStamp.now;
+            voicelineDef.Play(gameObject);
+        } 
         public class PendingVoiceline
         {
             public VoicelineDef voicelineDef;
@@ -1740,7 +1774,7 @@ namespace Demolisher
             {
                 Transform transform = characterModel.transform.Find(emote ? particleCustomSimulationSpace.emotePath : particleCustomSimulationSpace.path);
                 if (transform == null) continue;
-                particleCustomSimulationSpace.particleSystem.simulationSpace = ParticleSystemSimulationSpace.Custom;
+                particleCustomSimulationSpace.particleSystem.simulationSpace = ParticleSystemSimulationSpace.Local;
                 ParticleSystem.MainModule mainModule = particleCustomSimulationSpace.particleSystem.main;
                 mainModule.customSimulationSpace = transform;
             }
@@ -1798,20 +1832,38 @@ namespace Demolisher
     }
     public class DemolisherAimAnimator : MonoBehaviour
     {
-        public static float smoothTime = 0.05f;
+        public static float smoothTime = 0.2f;
+        public static float weightSmoothTime = 0.25f;
         public static float pitchToRollCoof = 90f;
-        public InputBankTest inputBankTest;
         public AimTransform[] transforms;
-        public float aimX;
-        public float aimY;
-        public float transformX;
-        public float transformY;
-        public float difX;
-        public float difY;
-        public float difZ;
+        public InputBankTest inputBankTest;
+        public CharacterBody characterBody;
+        public Animator animator;
+        public int[] layers;
+        private float difX;
+        private float difXVelocity;
+        private float difY;
+        private float difYVelocity;
+        private float weight;
+        private float weightVelocity;
+        public void Update()
+        {
+            if (!characterBody) return;
+            int count = 0;
+            if (animator && layers != null) foreach (int layer in layers) count += animator.GetCurrentAnimatorClipInfoCount(layer);
+            if (characterBody.aimTimer == 0f || count > 0)
+            {
+                weight = Mathf.SmoothDamp(weight, 0f, ref weightVelocity, weightSmoothTime / characterBody.attackSpeed, float.PositiveInfinity, Time.deltaTime);
+                //weight = Mathf.SmoothDamp(weight, 1f, ref weightVelocity, weightSmoothTime);
+            }
+            else
+            {
+                weight = 1f;
+            }
+        }
         public void LateUpdate()
         {
-            if (!inputBankTest || transforms == null) return;
+            if (weight == 0f || !inputBankTest || transforms == null) return;
             Vector3 vector3 = Quaternion.LookRotation(inputBankTest.aimDirection).eulerAngles;
             Vector3 vector33 = Quaternion.AngleAxis(90f, transform.up) * inputBankTest.aimDirection;
             vector33.y = 0f;
@@ -1835,19 +1887,19 @@ namespace Demolisher
             {
                 xDif += 360f;
             }
-            aimX = vector3.x;
-            aimY = vector3.y;
-            transformY = localEulerAngles.y;
-            transformX = localEulerAngles.x;
-            difX = xDif;
-            difY = yDif;
+            difX = Mathf.SmoothDamp(difX, xDif, ref difXVelocity, smoothTime / characterBody.attackSpeed / (180f / Mathf.Abs(xDif)), float.PositiveInfinity, Time.deltaTime);
+            difY = Mathf.SmoothDamp(difY, yDif, ref difYVelocity, smoothTime / characterBody.attackSpeed / (180f / Mathf.Abs(yDif)), float.PositiveInfinity, Time.deltaTime);
             for (int i = 0; i < transforms.Length; i++)
             {
                 AimTransform aimTransform = transforms[i];
                 Transform transform = aimTransform.transform;
-                transform.forward = Vector3.RotateTowards(transform.forward, inputBankTest.aimDirection);
-                float y = transform.eulerAngles.y + yDif * aimTransform.yawWeight;
-                float x = transform.eulerAngles.x + xDif * aimTransform.pitchWeight;
+                //Vector3 localAngles = transform.localEulerAngles;
+                //transform.localEulerAngles = Vector3.zero;
+                //float angle = Vector3.Angle(transform.forward, inputBankTest.aimDirection);
+                //transform.forward = Vector3.RotateTowards(transform.forward, inputBankTest.aimDirection, angle * 0.01745329f * aimTransform.yawWeight, 0f);
+                //transform.localEulerAngles += localAngles;
+                float y = transform.eulerAngles.y + difY * aimTransform.yawWeight * weight;
+                float x = transform.eulerAngles.x + difX * aimTransform.pitchWeight * weight;
                 Vector3 vector31 = transform.eulerAngles;
                 vector31.y = y;
                 vector31.x = x;
@@ -1862,6 +1914,14 @@ namespace Demolisher
             internal float yawVelocity;
             public float pitchWeight;
             internal float pitchVelocity;
+        }
+    }
+    public class RotateBone : MonoBehaviour
+    {
+        public Vector3 rotation;
+        public void LateUpdate()
+        {
+            transform.localEulerAngles += rotation;
         }
     }
     public abstract class DemolisherWeaponDef : ScriptableObject
