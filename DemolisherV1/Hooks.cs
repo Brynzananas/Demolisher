@@ -111,8 +111,11 @@ namespace Demolisher
     {
         public static FieldReference FieldReference;
         public static TypeDefinition ThatFuckingStructThatIHate;
+        private static bool hooksSet;
         public static void SetHooks()
         {
+            if (hooksSet) return;
+            hooksSet = true;
             On.RoR2.HealthComponent.TakeDamageProcess += HealthComponent_TakeDamageProcess;
             GlobalEventManager.onServerDamageDealt += GlobalEventManager_onServerDamageDealt;
             GlobalEventManager.onCharacterDeathGlobal += GlobalEventManager_onCharacterDeathGlobal;
@@ -125,12 +128,33 @@ namespace Demolisher
             On.RoR2.UI.CharacterSelectController.OnEnable += CharacterSelectController_OnEnable;
             On.RoR2.UI.CharacterSelectController.OnDisable += CharacterSelectController_OnDisable;
             On.RoR2.ModelLocator.UpdateTargetNormal += ModelLocator_UpdateTargetNormal;
-            //On.RoR2.TeleporterInteraction.IdleToChargingState.OnEnter += IdleToChargingState_OnEnter;
             Stage.onStageStartGlobal += Stage_onStageStartGlobal;
             On.RoR2.CharacterMotor.OnGroundHit += CharacterMotor_OnGroundHit;
             On.RoR2.CharacterMotor.ModifyGravity += CharacterMotor_ModifyGravity;
             On.RoR2.Projectile.ProjectileNetworkTransform.Start += ProjectileNetworkTransform_Start;
             SceneDirector.onPrePopulateSceneServer += SceneDirector_onPrePopulateSceneServer;
+        }
+        public static void UnsetHooks()
+        {
+            if (!hooksSet) return;
+            hooksSet = false;
+            On.RoR2.HealthComponent.TakeDamageProcess -= HealthComponent_TakeDamageProcess;
+            GlobalEventManager.onServerDamageDealt -= GlobalEventManager_onServerDamageDealt;
+            GlobalEventManager.onCharacterDeathGlobal -= GlobalEventManager_onCharacterDeathGlobal;
+            IL.RoR2.HealthComponent.TakeDamageProcess -= HealthComponent_TakeDamageProcess1;
+            IL.RoR2.UI.HUD.Update -= HUD_Update;
+            On.RoR2.GlobalEventManager.OnCharacterHitGroundServer -= GlobalEventManager_OnCharacterHitGroundServer;
+            On.RoR2.BodyCatalog.SetBodyPrefabs -= BodyCatalog_SetBodyPrefabs;
+            On.RoR2.GlobalEventManager.IsImmuneToFallDamage -= GlobalEventManager_IsImmuneToFallDamage;
+            RoR2Application.onLoadFinished -= OnRoR2Loaded;
+            On.RoR2.UI.CharacterSelectController.OnEnable -= CharacterSelectController_OnEnable;
+            On.RoR2.UI.CharacterSelectController.OnDisable -= CharacterSelectController_OnDisable;
+            On.RoR2.ModelLocator.UpdateTargetNormal -= ModelLocator_UpdateTargetNormal;
+            Stage.onStageStartGlobal -= Stage_onStageStartGlobal;
+            On.RoR2.CharacterMotor.OnGroundHit -= CharacterMotor_OnGroundHit;
+            On.RoR2.CharacterMotor.ModifyGravity -= CharacterMotor_ModifyGravity;
+            On.RoR2.Projectile.ProjectileNetworkTransform.Start -= ProjectileNetworkTransform_Start;
+            SceneDirector.onPrePopulateSceneServer -= SceneDirector_onPrePopulateSceneServer;
         }
 
         private static void ProjectileNetworkTransform_Start(On.RoR2.Projectile.ProjectileNetworkTransform.orig_Start orig, RoR2.Projectile.ProjectileNetworkTransform self)

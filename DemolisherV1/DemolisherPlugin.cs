@@ -35,7 +35,7 @@ namespace Demolisher
     {
         public const string ModGuid = "com.brynzananas.demolisher";
         public const string ModName = "Demolisher";
-        public const string ModVer = "0.4.0";
+        public const string ModVer = "0.4.1";
 
         public static bool emotesEnabled { get; private set; }
         public static bool riskOfOptionsEnabled { get; private set; }
@@ -73,6 +73,10 @@ namespace Demolisher
         public void FixedUpdate()
         {
             Hooks.stagetStartTime += Time.fixedDeltaTime;
+        }
+        public void OnDestroy()
+        {
+            Hooks.UnsetHooks();
         }
     }
 }

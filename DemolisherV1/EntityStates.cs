@@ -676,6 +676,7 @@ namespace Demolisher
         public static float shieldBashVelocityForceMultiplier = 1f;
         public static float shieldBashGravityForceMultiplier = 1f;
         public static float extraGroundingDistance = 1f;
+        public static float extraStepOffset = 1f;
         public static Action<float> onChargeEndGiveSqrTraveledDistance;
         public Animator modelAnimator;
         public CharacterAnimParamAvailability characterAnimParamAvailability;
@@ -749,13 +750,13 @@ namespace Demolisher
             bulletAttack.physForceFlags = PhysForceFlags.massIsOne | PhysForceFlags.ignoreGroundStick | PhysForceFlags.disableAirControlUntilCollision;
             UpdateBulletAttack(characterBody.damage * shieldBashDamageCoefficient, shieldBashProcCoefficient, 0f, RollCrit(), shieldBashRadiusMultiplier, shieldBashDistance, true);
             ConstantUpdateBulletAttack(new Ray(characterBody.corePosition, aimDirectionGrounded));
-            //Util.PlaySound("Play_stickybomblauncher_det", gameObject);
             if (characterMotor)
             {
-                characterMotor.walkSpeedPenaltyCoefficient *= walkSpeedMultiplier;
-                if (characterMotor.Motor) characterMotor.Motor.GroundDetectionExtraDistance += extraGroundingDistance;
+                //characterMotor.walkSpeedPenaltyCoefficient *= walkSpeedMultiplier;
+                if (characterMotor.Motor)  characterMotor.Motor.GroundDetectionExtraDistance += extraGroundingDistance;
+                characterMotor.stepOffset += extraStepOffset;
                 Vector3 velocity = direction * characterBody.moveSpeed * walkSpeedMultiplier;
-                velocity.y = characterMotor.velocity.y;
+                velocity.y = Mathf.Max(characterMotor.velocity.y, 0f);
                 characterMotor.velocity = velocity;
             }
             if (demolisherModel)
@@ -812,19 +813,20 @@ namespace Demolisher
             }
             if (characterMotor)
             {
+                characterMotor.stepOffset -= extraStepOffset;
                 if (characterMotor.Motor) characterMotor.Motor.GroundDetectionExtraDistance -= extraGroundingDistance;
-                float walkSpeed = characterMotor.walkSpeed;
-                characterMotor.walkSpeedPenaltyCoefficient /= walkSpeedMultiplier;
+                //float walkSpeed = characterMotor.walkSpeed;
+                //characterMotor.walkSpeedPenaltyCoefficient /= walkSpeedMultiplier;
                 characterMotor.SetVelocityOverride(Vector3.zero);
-                Vector3 velocity = characterMotor.velocity;
-                float y = velocity.y;
-                velocity.y = 0f;
-                if (velocity.sqrMagnitude > walkSpeed * walkSpeed)
-                {
-                    velocity = Vector3.ClampMagnitude(velocity, walkSpeed);
-                    velocity.y = y;
-                    characterMotor.velocity = velocity;
-                }
+                //Vector3 velocity = characterMotor.velocity;
+                //float y = velocity.y;
+                //velocity.y = 0f;
+                //if (velocity.sqrMagnitude > walkSpeed * walkSpeed)
+                //{
+                //    velocity = Vector3.ClampMagnitude(velocity, walkSpeed);
+                //    velocity.y = y;
+                //    characterMotor.velocity = velocity;
+                //}
             }
             if (inputBank) inputBank.skill1.PushState(true);
         }
@@ -961,12 +963,14 @@ namespace Demolisher
             Util.PlaySound("Play_DemoSwordSwing", gameObject);
             CreateBulletAttack();
             UpdateBulletAttack(damageCoefficient * characterBody.damage, procCoefficient, force, RollCrit(), radius, maxDistance, true);
+            if (NetworkServer.active) characterBody.AddBuff(RoR2Content.Buffs.ArmorBoost);
         }
         public override void OnExit()
         {
             base.OnExit();
             if (demolisherModel) demolisherModel.devilCount--;
             if (animator) animator.SetBool("isSpinning", false);
+            if (NetworkServer.active) characterBody.RemoveBuff(RoR2Content.Buffs.ArmorBoost);
         }
         public override InterruptPriority GetMinimumInterruptPriority()
         {
@@ -1512,6 +1516,7 @@ namespace Demolisher
             }
             //cracksTrail = GameObject.Instantiate(Assets.CracksTrailEffect, characterBody.coreTransform);
             if (activatorSkillSlot) activatorSkillSlot.stock = activatorSkillSlot.stock * stockMultiplier;
+            if (NetworkServer.active) characterBody.AddBuff(RoR2Content.Buffs.ArmorBoost);
             if (isAuthority)
             {
                 BrynzaAPI.Utils.ChangeTimescaleForAllClients(Time.timeScale / timeDivisionMultiplier);
@@ -1564,6 +1569,7 @@ namespace Demolisher
                 }
             }
             if (activatorSkillSlot) activatorSkillSlot.stock = activatorSkillSlot.stock / stockMultiplier;
+            if (NetworkServer.active) characterBody.RemoveBuff(RoR2Content.Buffs.ArmorBoost);
             if (isAuthority)
             {
                 BrynzaAPI.Utils.ChangeTimescaleForAllClients(Time.timeScale * timeDivisionMultiplier);
@@ -1784,6 +1790,7 @@ namespace Demolisher
         public static float speedMultiplier => ChainDashConfig.speedMultiplier.Value;
         public static float moveVectorSmoothTime => ChainDashConfig.moveVectorSmoothTime.Value;
         public static float extraGroundingDistance = 1f;
+        public static float extraStepOffset = 1f;
         public static float baseEffectDuration = 0.1f;
         public static float effectScale = 1f;
         public float effectDuration;
@@ -1798,12 +1805,18 @@ namespace Demolisher
         public Animator modelAnimator;
         public BodyAnimatorSmoothingParameters.SmoothingParameters smoothingParameters;
         public bool success;
+
         private bool keyPressed => keyDown && !wasKeyDown;
         public override void OnEnter()
         {
             base.OnEnter();
             //GetBodyAnimatorSmoothingParameters(out smoothingParameters);
-            if (characterMotor && characterMotor.Motor) characterMotor.Motor.GroundDetectionExtraDistance += extraGroundingDistance;
+            if (characterMotor)
+            {
+                characterMotor.stepOffset += extraStepOffset;
+                characterMotor.velocity.y = Mathf.Max(0f, characterMotor.velocity.y);
+                if (characterMotor.Motor) characterMotor.Motor.GroundDetectionExtraDistance += extraGroundingDistance;
+            }
             if (demolisherModel) demolisherModel.trailCount++;
             SetValues();
             wasKeyDown = true;
@@ -1860,7 +1873,11 @@ namespace Demolisher
         {
             base.OnExit();
             if (demolisherComponent) demolisherComponent.overrideMeleeUtilityMeter = -1f;
-            if (characterMotor && characterMotor.Motor) characterMotor.Motor.GroundDetectionExtraDistance -= extraGroundingDistance;
+            if (characterMotor)
+            {
+                characterMotor.stepOffset -= extraStepOffset;
+                if (characterMotor.Motor) characterMotor.Motor.GroundDetectionExtraDistance -= extraGroundingDistance;
+            }
             if (demolisherModel) demolisherModel.trailCount--;
             if (modelAnimator && !success)
             {
@@ -2001,6 +2018,7 @@ namespace Demolisher
                 demolisherModel.devilCount++;
                 demolisherModel.shakeWeight += shake;
             }
+            if (NetworkServer.active) characterBody.AddBuff(RoR2Content.Buffs.ArmorBoost);
             if (isAuthority)
             {
                 if (cameraTargetParams)
@@ -2135,6 +2153,7 @@ namespace Demolisher
                 animator.SetBool("isFlying", false);
             }
             if (effectApplied && demolisherModelLocator) demolisherModelLocator.overrideTargetNormalCount--;
+            if (NetworkServer.active) characterBody.RemoveBuff(RoR2Content.Buffs.ArmorBoost);
             if (isAuthority)
             {
                 //foreach (CameraRigController cameraRigController in CameraRigController.readOnlyInstancesList)
@@ -2215,6 +2234,7 @@ namespace Demolisher
             if (laserEffect) laserEffect.transform.Find("laser").localScale = new Vector3(radius, radius, range);
             CreateBulletAttack();
             UpdateBulletAttack(characterBody.damage * damageCoefficient, procCoefficient, force, RollCrit(), radius, range, true);
+            if (NetworkServer.active) characterBody.AddBuff(RoR2Content.Buffs.ArmorBoost);
             if (!isAuthority) return;
         }
         public override void FixedUpdate()
@@ -2260,6 +2280,7 @@ namespace Demolisher
                 animator.SetBool("isChestFiring", false);
             }
             if (laserEffect) Destroy(laserEffect);
+            if (NetworkServer.active) characterBody.RemoveBuff(RoR2Content.Buffs.ArmorBoost);
         }
     }
     public abstract class DemolisherElevatorBaseState : EntityState

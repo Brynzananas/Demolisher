@@ -820,17 +820,23 @@ namespace Demolisher
                 };
                 characterBody.healthComponent?.TakeDamageProcess(damageInfo);
             }
+            PhysForceInfo physForceInfo = new PhysForceInfo
+            {
+                //disableAirControlUntilCollision = true,
+                //ignoreGroundStick = true,
+                //massIsOne = true,
+                _flags = (int)(PhysForceFlags.ignoreGroundStick | PhysForceFlags.massIsOne | PhysForceFlags.disableAirControlUntilCollision),
+                force = forceVector * force + Physics.gravity * upForce * -1f
+            };
             CharacterMotor characterMotor = characterBody.characterMotor;
             if (characterMotor)
             {
-                PhysForceInfo physForceInfo = new PhysForceInfo
-                {
-                    disableAirControlUntilCollision = true,
-                    ignoreGroundStick = true,
-                    massIsOne = true,
-                    force = forceVector * force + Physics.gravity * upForce * -1f
-                };
+                
                 characterMotor?.ApplyForceImpulse(physForceInfo);
+            }
+            else if (characterBody.rigidbody)
+            {
+                characterBody.rigidbody.AddForceWithInfo(physForceInfo);
             }
             rigidbody.velocity = velocityOnHit;
 
