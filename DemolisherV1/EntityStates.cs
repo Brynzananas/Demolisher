@@ -1814,7 +1814,7 @@ namespace Demolisher
             if (characterMotor)
             {
                 characterMotor.stepOffset += extraStepOffset;
-                characterMotor.velocity.y = Mathf.Max(0f, characterMotor.velocity.y);
+                //characterMotor.velocity.y = Mathf.Max(0f, characterMotor.velocity.y);
                 if (characterMotor.Motor) characterMotor.Motor.GroundDetectionExtraDistance += extraGroundingDistance;
             }
             if (demolisherModel) demolisherModel.trailCount++;
