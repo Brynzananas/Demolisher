@@ -169,10 +169,10 @@ namespace Demolisher
                 if (genericSkill.skillName.Contains("Secondary")) genericSkill.loadoutTitleToken = "LOADOUT_SKILL_SECONDARY";
                 if (genericSkill.skillName.Contains("Utility")) genericSkill.loadoutTitleToken = "LOADOUT_SKILL_UTILITY";
                 if (genericSkill.skillName.Contains("Special")) genericSkill.loadoutTitleToken = "LOADOUT_SKILL_SPECIAL";
-                if (genericSkill.skillName.Contains("Passive")) genericSkill.loadoutTitleToken = "LOADOUT_SKILL_PASSIVE";
+                //if (genericSkill.skillName.Contains("Passive")) genericSkill.loadoutTitleToken = "LOADOUT_SKILL_PASSIVE";
             }
-            CameraTargetParams cameraTargetParams = DemolisherBody.GetComponent<CameraTargetParams>();
-            cameraTargetParams.cameraParams = Addressables.LoadAssetAsync<CharacterCameraParams>("RoR2/Base/Common/ccpStandard.asset").WaitForCompletion();
+            //CameraTargetParams cameraTargetParams = DemolisherBody.GetComponent<CameraTargetParams>();
+            //cameraTargetParams.cameraParams = Addressables.LoadAssetAsync<CharacterCameraParams>("RoR2/Base/Common/ccpStandard.asset").WaitForCompletion();
             DemolisherCharacterBody = DemolisherBody.GetComponent<CharacterBody>();
             DemolisherCharacterBody.AddModdedBodyFlag(BrynzaAPI.Assets.SprintAllTime);
             DemolisherCharacterBody.preferredPodPrefab = DemolisherElevator; //LegacyResourcesAPI.Load<GameObject>("Prefabs/NetworkedObjects/SurvivorPod");//Addressables.LoadAssetAsync<GameObject>("RoR2/Base/SurvivorPod/SurvivorPod.prefab").WaitForCompletion();
