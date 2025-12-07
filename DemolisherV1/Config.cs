@@ -46,7 +46,10 @@ namespace Demolisher
             CrosshairRangedPrimaryCharge = CreateConfig(name, "Demolisher Crosshair Ranged Primary Charge Meter", true, "");
             CrosshairRangedSecondaryCounter = CreateConfig(name, "Demolisher Crosshair Ranged Secondary Counter", true, "");
             CrosshairRangedSecondaryCharge = CreateConfig(name, "Demolisher Crosshair Ranged Secondary Charge Meter", true, "");
+            CrosshairMeleeSpecialCharge = CreateConfig(name, "Demolisher Crosshair Melee Charge Meter", true, "");
+            CrosshairRangedSpecialCharge = CreateConfig(name, "Demolisher Crosshair Ranged Special Charge Meter", true, "");
             DemolisherVoicelines = CreateConfig(name, "Demolisher Voicelines", true, "");
+            StickyRangeIndicator = CreateConfig(name, "Sticky Trap Blast Radius Indicator", true, "");
             //DemolisherBooleanConfigComponent[] explosionConfigs = Assets.Explosion.prefab.GetComponents<DemolisherBooleanConfigComponent>();
             //for (int i = 0; i < explosionConfigs.Length; i++)
             //{
@@ -66,7 +69,10 @@ namespace Demolisher
         public static ConfigEntry<bool> CrosshairRangedPrimaryCharge;
         public static ConfigEntry<bool> CrosshairRangedSecondaryCounter;
         public static ConfigEntry<bool> CrosshairRangedSecondaryCharge;
+        public static ConfigEntry<bool> CrosshairMeleeSpecialCharge;
+        public static ConfigEntry<bool> CrosshairRangedSpecialCharge;
         public static ConfigEntry<bool> DemolisherVoicelines;
+        public static ConfigEntry<bool> StickyRangeIndicator;
     }
     public static class SharpnessConfig
     {

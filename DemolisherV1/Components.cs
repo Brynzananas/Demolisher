@@ -297,7 +297,7 @@ namespace Demolisher
             }
         }
     }
-    public class ProjectileDetonator : NetworkBehaviour
+    public class ProjectileDetonator : NetworkBehaviour, ILifeBehavior
     {
         public Dictionary<string, List<ProjectileRemoteDetonation>> projectiles = new Dictionary<string, List<ProjectileRemoteDetonation>>();
         public void AddProjectile(ProjectileRemoteDetonation projectileRemoteDetonation)
@@ -356,6 +356,11 @@ namespace Demolisher
             {
                 CmdDetonateAll(identificator);
             }
+        }
+
+        public void OnDeathStart()
+        {
+            if (NetworkServer.active) DetonateAll();
         }
     }
     [RequireComponent(typeof(ProjectileDamage))]
@@ -963,7 +968,7 @@ namespace Demolisher
             }
             if (obj.attacker == null || obj.attacker != gameObject) return;
             voicelineChance += voicelineChancePerKill;
-            if (!VisualsConfig.DemolisherVoicelines.Value || lastVoicelineTime.timeSince < blockTime || (!obj.victimIsBoss && !Util.CheckRoll(voicelineChance)) || pendingVoicelines.Count > 0) return;
+            if (lastVoicelineTime.timeSince < blockTime || (!obj.victimIsBoss && !Util.CheckRoll(voicelineChance)) || pendingVoicelines.Count > 0) return;
             float timer = UnityEngine.Random.Range(startTimer, endTimer);
             voicelineChance = 0f;
             ProjectileRemoteDetonation projectileRemoteDetonation = obj.damageInfo.inflictor ? obj.damageInfo.inflictor.GetComponent<ProjectileRemoteDetonation>() : null;
@@ -1017,7 +1022,11 @@ namespace Demolisher
             }
         }
         [ClientRpc]
-        public void RpcPlayVoiceline(int voicelineId) => PlayVoiceline(VoicelineDef.voicelineDefs[voicelineId]);
+        public void RpcPlayVoiceline(int voicelineId)
+        {
+            if (!VisualsConfig.DemolisherVoicelines.Value) return;
+            PlayVoiceline(VoicelineDef.voicelineDefs[voicelineId]);
+        } 
         public void PlayVoiceline(VoicelineDef voicelineDef)
         {
             lastVoicelineTime = Run.FixedTimeStamp.now;
@@ -1630,10 +1639,8 @@ namespace Demolisher
         public Image rangedPrimaryMeter;
         public TextMeshProUGUI rangedSecondaryCounter;
         public Image rangedSecondaryMeter;
-        public void Awake()
-        {
-
-        }
+        public Image meleeSpecialMeter;
+        public Image rangedSpecialMeter;
         public void Update()
         {
             if (demolisherComponent)
@@ -1673,15 +1680,19 @@ namespace Demolisher
                 {
                     if (rangedSecondaryMeter) rangedSecondaryMeter.fillAmount = 1f;
                 }
+                if (meleeSpecialMeter && demolisherComponent.meleeSpecial) meleeSpecialMeter.fillAmount = demolisherComponent.meleeSpecial.stock < demolisherComponent.meleeSpecial.maxStock ? demolisherComponent.meleeSpecial.rechargeStopwatch / demolisherComponent.meleeSpecial.finalRechargeInterval : 1f;
+                if (rangedSpecialMeter && demolisherComponent.rangedSpecial) rangedSpecialMeter.fillAmount = demolisherComponent.rangedSpecial.stock < demolisherComponent.rangedSpecial.maxStock ? demolisherComponent.rangedSpecial.rechargeStopwatch / demolisherComponent.rangedSpecial.finalRechargeInterval : 1f;
             }
             else
             {
                 generalMeter.fillAmount = 1f;
                 meleeUtilityMeter.fillAmount = 1f;
-                rangedSecondaryCounter.gameObject.SetActive(false);
-                rangedPrimaryMeter.gameObject.SetActive(false);
-                rangedSecondaryMeter.gameObject.SetActive(false);
-                rangedPrimaryCounter.gameObject.SetActive(false);
+                //rangedSecondaryCounter.gameObject.SetActive(false);
+                //rangedPrimaryMeter.gameObject.SetActive(false);
+                //rangedSecondaryMeter.gameObject.SetActive(false);
+                //rangedPrimaryCounter.gameObject.SetActive(false);
+                //meleeSpecialMeter.gameObject.SetActive(false);
+                //rangedSpecialMeter.gameObject.SetActive(false);
             }
         }
     }
@@ -1928,6 +1939,15 @@ namespace Demolisher
         public void LateUpdate()
         {
             transform.localEulerAngles += rotation;
+        }
+    }
+    [RequireComponent(typeof(ProjectileNetworkTransform))]
+    public class FixProjectileNetworkTransform : MonoBehaviour
+    {
+        public ProjectileNetworkTransform projectileNetworkTransform;
+        public void Start()
+        {
+            projectileNetworkTransform.Interpolate();
         }
     }
     public abstract class DemolisherWeaponDef : ScriptableObject

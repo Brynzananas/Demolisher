@@ -131,7 +131,6 @@ namespace Demolisher
             Stage.onStageStartGlobal += Stage_onStageStartGlobal;
             On.RoR2.CharacterMotor.OnGroundHit += CharacterMotor_OnGroundHit;
             On.RoR2.CharacterMotor.ModifyGravity += CharacterMotor_ModifyGravity;
-            On.RoR2.Projectile.ProjectileNetworkTransform.Start += ProjectileNetworkTransform_Start;
             SceneDirector.onPrePopulateSceneServer += SceneDirector_onPrePopulateSceneServer;
         }
         public static void UnsetHooks()
@@ -153,16 +152,8 @@ namespace Demolisher
             Stage.onStageStartGlobal -= Stage_onStageStartGlobal;
             On.RoR2.CharacterMotor.OnGroundHit -= CharacterMotor_OnGroundHit;
             On.RoR2.CharacterMotor.ModifyGravity -= CharacterMotor_ModifyGravity;
-            On.RoR2.Projectile.ProjectileNetworkTransform.Start -= ProjectileNetworkTransform_Start;
             SceneDirector.onPrePopulateSceneServer -= SceneDirector_onPrePopulateSceneServer;
         }
-
-        private static void ProjectileNetworkTransform_Start(On.RoR2.Projectile.ProjectileNetworkTransform.orig_Start orig, RoR2.Projectile.ProjectileNetworkTransform self)
-        {
-            orig(self);
-            self.Interpolate();
-        }
-
         public static float BootsPullStrength => BootsConfig.pullStrength.Value;
         public static float timeUntilCanPull = 0.5f;
         private static void CharacterMotor_ModifyGravity(On.RoR2.CharacterMotor.orig_ModifyGravity orig, CharacterMotor self, ref float verticalVelocity, ref float gravity, float deltaTime)

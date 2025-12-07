@@ -620,7 +620,7 @@ namespace Demolisher
         {
             if (hitTarget || !hitInfo.hitHurtBox || hitJump <= 0f) return false;
             HealthComponent healthComponent = hitInfo.hitHurtBox.healthComponent;
-            if (!healthComponent || healthComponent == this.healthComponent || !healthComponent.alive) return false;
+            if (!healthComponent || healthComponent == this.healthComponent || !healthComponent.wasAlive) return false;
             hitTarget = true;
             float y = hitJump * Physics.gravity.y * -1f;
             if (characterMotor)
