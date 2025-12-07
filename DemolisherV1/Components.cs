@@ -1159,10 +1159,10 @@ namespace Demolisher
                 {
                     if (devilCountApplied) return;
                     devilCountApplied = true;
-                    foreach (GameObject devilObject in devilObjects) devilObject?.SetActive(true);
-                    foreach (GameObject devilObject in extraDevilObjects) devilObject?.SetActive(true);
-                    foreach (GameObject nonDevilObject in nonDevilObjects) nonDevilObject?.SetActive(false);
-                    foreach (GameObject nonDevilObject in extraNonDevilObjects) nonDevilObject?.SetActive(false);
+                    foreach (GameObject devilObject in devilObjects) if(devilObject) devilObject.SetActive(true);
+                    foreach (GameObject devilObject in extraDevilObjects) if(devilObject) devilObject.SetActive(true);
+                    foreach (GameObject nonDevilObject in nonDevilObjects) if (nonDevilObject) nonDevilObject.SetActive(false);
+                    foreach (GameObject nonDevilObject in extraNonDevilObjects) if (nonDevilObject) nonDevilObject.SetActive(false);
                     if (devilMaterial)
                     {
                         if (!temporaryOverlay)
@@ -1179,10 +1179,10 @@ namespace Demolisher
                 {
                     if (!devilCountApplied) return;
                     devilCountApplied = false;
-                    foreach (GameObject devilObject in devilObjects) devilObject?.SetActive(false);
-                    foreach (GameObject devilObject in extraDevilObjects) devilObject?.SetActive(false);
-                    foreach (GameObject nonDevilObject in nonDevilObjects) nonDevilObject?.SetActive(true);
-                    foreach (GameObject nonDevilObject in extraNonDevilObjects) nonDevilObject?.SetActive(true);
+                    foreach (GameObject devilObject in devilObjects) if (devilObject) devilObject.SetActive(false);
+                    foreach (GameObject devilObject in extraDevilObjects) if (devilObject) devilObject.SetActive(false);
+                    foreach (GameObject nonDevilObject in nonDevilObjects) if (nonDevilObject) nonDevilObject.SetActive(true);
+                    foreach (GameObject nonDevilObject in extraNonDevilObjects) if (nonDevilObject) nonDevilObject.SetActive(true);
                     if (temporaryOverlay) temporaryOverlay.RemoveFromCharacterModel();
                 }
             }
@@ -1199,13 +1199,13 @@ namespace Demolisher
                 {
                     if (trailCountApplied) return;
                     trailCountApplied = true;
-                    foreach (ParticleSystem particleSystem in devilParticles) particleSystem?.Play(true);
+                    foreach (ParticleSystem particleSystem in devilParticles) if (particleSystem) particleSystem.Play(true);
                 }
                 else
                 {
                     if (!trailCountApplied) return;
                     trailCountApplied = false;
-                    foreach (ParticleSystem particleSystem in devilParticles) particleSystem?.Stop(true, ParticleSystemStopBehavior.StopEmitting);
+                    foreach (ParticleSystem particleSystem in devilParticles) if (particleSystem) particleSystem.Stop(true, ParticleSystemStopBehavior.StopEmitting);
                 }
             }
         }
