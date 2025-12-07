@@ -151,12 +151,13 @@ namespace Demolisher
             ChangeCrosshairImages(this);
             void ChangeCrosshairImages(DemolisherComponent demolisherComponent)
             {
+                if (!demolisherComponent || !demolisherCrosshair) return;
                 bool isSwapped = this.isSwapped;
                 Sprite sprite = isSwapped ? Assets.CrosshairRangedSprite : Assets.CrosshairMeleeSprite;
-                demolisherCrosshair.generalMeter.sprite = sprite;
-                demolisherCrosshair.generalMeterBase.sprite = sprite;
-                demolisherCrosshair.meleeUtilityMeter.sprite = sprite;
-                demolisherCrosshair.meleeUtilityMeterBase.sprite = sprite;
+                demolisherCrosshair.generalMeter?.sprite = sprite;
+                demolisherCrosshair.generalMeterBase?.sprite = sprite;
+                demolisherCrosshair.meleeUtilityMeter?.sprite = sprite;
+                demolisherCrosshair.meleeUtilityMeterBase?.sprite = sprite;
             }
         }
         public void SwapWeapons()
@@ -651,12 +652,12 @@ namespace Demolisher
     [RequireComponent(typeof(ProjectileStickOnImpact))]
     public class DemolisherHook : NetworkBehaviour, IStateSeeker
     {
-        public static float hookPower = 2f;
-        public static float hookAimPower = 64f;
-        public static float hookPower2 = 16f;
-        public static float hookDistance = 16f;
-        public static float hookDistance2 = 64f;
-        public static float smoothTime = 0.2f;
+        public float hookPower = 2f;
+        public float hookAimPower = 64f;
+        public float hookPower2 = 16f;
+        public float hookDistance = 16f;
+        public float hookDistance2 = 64f;
+        public float smoothTime = 1f;
         public ProjectileController projectileController;
         public ProjectileStickOnImpact projectileStickOnImpact;
         public Transform startTransform;
@@ -855,17 +856,32 @@ namespace Demolisher
     {
         public static RocketJumpComponent.OnRocketJumpApplied onRocketJumpApplied = AddFeetSmoke;
         public ParticleSystem particleSystem;
-        [HideInInspector] public CharacterMotor characterMotor;
+        //[HideInInspector] public CharacterMotor characterMotor;
         public void OnLanded(ref CharacterMotor.HitGroundInfo hitGroundInfo)
         {
             //particleSystem.enableEmission = false;
             particleSystem.Stop(true, ParticleSystemStopBehavior.StopEmitting);
             transform.SetParent(null, true);
-            characterMotor.onHitGroundAuthority -= OnLanded;
+            //characterMotor.onHitGroundAuthority -= OnLanded;
         }
         public static void AddFeetSmoke(RocketJumpComponent rocketJumpComponent, CharacterBody characterBody, Vector3 vector3)
         {
             new FeetEffectNetMessage(characterBody.netId).Send(R2API.Networking.NetworkDestination.Clients);
+        }
+    }
+    public class DemolisherFeetEffectsHolder : MonoBehaviour, IOnGroundHit
+    {
+        public List<DemolisherFeetEffect> demolisherFeetEffects = [];
+
+        public void OnGroundHit(CharacterMotor characterMotor, CharacterMotor.HitGroundInfo hitGroundInfo)
+        {
+            for (int i = 0; i < demolisherFeetEffects.Count; i++)
+            {
+                DemolisherFeetEffect demolisherFeetEffect = demolisherFeetEffects[i];
+                if (!demolisherFeetEffect) return;
+                demolisherFeetEffect.OnLanded(ref hitGroundInfo);
+            }
+            Destroy(this);
         }
     }
     [RequireComponent(typeof(ProjectileController))]
@@ -1143,10 +1159,10 @@ namespace Demolisher
                 {
                     if (devilCountApplied) return;
                     devilCountApplied = true;
-                    foreach (GameObject devilObject in devilObjects) devilObject.SetActive(true);
-                    foreach (GameObject devilObject in extraDevilObjects) devilObject.SetActive(true);
-                    foreach (GameObject nonDevilObject in nonDevilObjects) nonDevilObject.SetActive(false);
-                    foreach (GameObject nonDevilObject in extraNonDevilObjects) nonDevilObject.SetActive(false);
+                    foreach (GameObject devilObject in devilObjects) devilObject?.SetActive(true);
+                    foreach (GameObject devilObject in extraDevilObjects) devilObject?.SetActive(true);
+                    foreach (GameObject nonDevilObject in nonDevilObjects) nonDevilObject?.SetActive(false);
+                    foreach (GameObject nonDevilObject in extraNonDevilObjects) nonDevilObject?.SetActive(false);
                     if (devilMaterial)
                     {
                         if (!temporaryOverlay)
@@ -1163,10 +1179,10 @@ namespace Demolisher
                 {
                     if (!devilCountApplied) return;
                     devilCountApplied = false;
-                    foreach (GameObject devilObject in devilObjects) devilObject.SetActive(false);
-                    foreach (GameObject devilObject in extraDevilObjects) devilObject.SetActive(false);
-                    foreach (GameObject nonDevilObject in nonDevilObjects) nonDevilObject.SetActive(true);
-                    foreach (GameObject nonDevilObject in extraNonDevilObjects) nonDevilObject.SetActive(true);
+                    foreach (GameObject devilObject in devilObjects) devilObject?.SetActive(false);
+                    foreach (GameObject devilObject in extraDevilObjects) devilObject?.SetActive(false);
+                    foreach (GameObject nonDevilObject in nonDevilObjects) nonDevilObject?.SetActive(true);
+                    foreach (GameObject nonDevilObject in extraNonDevilObjects) nonDevilObject?.SetActive(true);
                     if (temporaryOverlay) temporaryOverlay.RemoveFromCharacterModel();
                 }
             }
@@ -1183,13 +1199,13 @@ namespace Demolisher
                 {
                     if (trailCountApplied) return;
                     trailCountApplied = true;
-                    foreach (ParticleSystem particleSystem in devilParticles) particleSystem.Play(true);
+                    foreach (ParticleSystem particleSystem in devilParticles) particleSystem?.Play(true);
                 }
                 else
                 {
                     if (!trailCountApplied) return;
                     trailCountApplied = false;
-                    foreach (ParticleSystem particleSystem in devilParticles) particleSystem.Stop(true, ParticleSystemStopBehavior.StopEmitting);
+                    foreach (ParticleSystem particleSystem in devilParticles) particleSystem?.Stop(true, ParticleSystemStopBehavior.StopEmitting);
                 }
             }
         }

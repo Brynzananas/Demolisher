@@ -475,6 +475,159 @@ namespace Demolisher
             taken = reader.ReadBoolean();
         }
     }
+    public class MediumMeleeAttackWindUp : BaseSkillState, SteppedSkillDef.IStepSetter
+    {
+        public static float baseDuration => MediumMeleeAttackConfig.baseDuration.Value;
+        public static float swingUpCrossfade = 0.2f;
+        public float duration;
+        public bool noStep;
+        public bool fired;
+        public override void OnEnter()
+        {
+            base.OnEnter();
+            duration = baseDuration / attackSpeedStat;
+            PlayCrossfade("Gesture, Override", noStep ? "SwingUp1" : "SwingUp2", "Slash.playbackRate", duration, swingUpCrossfade / attackSpeedStat);
+        }
+        public override void FixedUpdate()
+        {
+            base.FixedUpdate();
+            StartAimMode();
+            if (!isAuthority) return;
+            if (fixedAge >= duration || characterBody.GetClientBuffCount(Assets.InstantMeleeSwing) > 0)
+            {
+                fired = true;
+                outer.SetState(new MediumMeleeAttackWindDown { activatorSkillSlot = activatorSkillSlot, noStep = noStep });
+            }
+        }
+        public override void OnExit()
+        {
+            base.OnExit();
+            if (!fired) PlayAnimation("Gesture, Override", "BufferEmpty");
+        }
+        public void SetStep(int i) => noStep = i % 2 == 0;
+        public override InterruptPriority GetMinimumInterruptPriority()
+        {
+            return InterruptPriority.Skill;
+        }
+    }
+    public class MediumMeleeAttackWindDown : BaseMeleeAttack
+    {
+        public static float damageCoefficient => MediumMeleeAttackConfig.damageCoefficient.Value;
+        public static float procCoefficient => MediumMeleeAttackConfig.procCoefficient.Value;
+        public static float baseAttackDuration => MediumMeleeAttackConfig.baseAttackDuration.Value;
+        public static float radius => MediumMeleeAttackConfig.radius.Value;
+        public static float force => MediumMeleeAttackConfig.force.Value;
+        public static float maxDistance => MediumMeleeAttackConfig.maxDistance.Value;
+        public static float hitJump => MediumMeleeAttackConfig.hitJump.Value;
+        public override DamageSource damageSource => GetDamageSource();
+        public static float recoil = 1f;
+        public static float spread = 1.5f;
+        public static float attackSpeedRampUpRate = 0.25f;
+        public static float maxAttackSpeedRampUp = 3f;
+        public static float swingDownCrossfade = 0.05f;
+        public static float bufferEmptyTransition = 0.2f;
+        public static float effectRotation = 35f;
+        private bool hitTarget;
+        public bool instantSwing;
+        public bool noStep;
+        public float stopwatch;
+        public float firingStopwatch;
+        public GameObject slash;
+        public bool firing;
+        public float attackDuration;
+        public Transform effectTransform;
+        public override void OnEnter()
+        {
+            base.OnEnter();
+            attackDuration = baseAttackDuration / attackSpeedStat;
+            CreateBulletAttack();
+            UpdateBulletAttack(characterBody.damage * damageCoefficient, procCoefficient, force, RollCrit(), radius, maxDistance, true);
+            slash = GameObject.Instantiate(Assets.Slash);
+            DemolisherSlash demolisherSlash = slash.GetComponent<DemolisherSlash>();
+            demolisherSlash.Init(1f / attackDuration);
+            PlayCrossfade("Gesture, Override", noStep ? "SwingDown1" : "SwingDown2", "Slash.playbackRate", attackDuration, swingDownCrossfade);
+            Util.PlaySound("Play_DemoSwordSwing", gameObject);
+            AddRecoil(recoil, recoil, noStep ? -recoil : recoil, noStep ? -recoil : recoil);
+            characterBody.AddSpreadBloom(spread);
+            if (!isAuthority) return;
+            characterBody.SetClientBuffCount(Assets.InstantMeleeSwing, 0);
+        }
+        public override void Update()
+        {
+            base.Update();
+            if (slash)
+            {
+                Ray ray = GetAimRay();
+                slash.transform.position = characterBody.aimOrigin;
+                Vector3 vector3 = Quaternion.LookRotation(ray.direction).eulerAngles;
+                vector3.z += noStep ? -effectRotation : effectRotation;
+                float radius = bulletAttack.radius;
+                float maxDistance = bulletAttack.maxDistance;
+                slash.transform.localScale = new Vector3(noStep ? radius : -radius, radius, maxDistance);
+                slash.transform.eulerAngles = vector3;
+            }
+        }
+        public override void FixedUpdate()
+        {
+            base.FixedUpdate();
+            Ray ray = GetAimRay();
+            ContinueFireMeleeAttack(ray);
+            if (!isAuthority) return;
+            if (fixedAge >= attackDuration || characterBody.GetClientBuffCount(Assets.InstantMeleeSwing) > 0)
+            {
+                outer.SetNextStateToMain();
+            }
+        }
+        public override void CreateBulletAttack(bool ignoreHitTargets = true)
+        {
+            base.CreateBulletAttack(ignoreHitTargets);
+            bulletAttack.hitCallback += OnHitCallBack;
+        }
+        private bool OnHitCallBack(BulletAttack bulletAttack, ref BulletAttack.BulletHit hitInfo)
+        {
+            if (hitTarget || !hitInfo.hitHurtBox || hitJump <= 0f) return false;
+            HealthComponent healthComponent = hitInfo.hitHurtBox.healthComponent;
+            if (!healthComponent || healthComponent == this.healthComponent || !healthComponent.wasAlive) return false;
+            hitTarget = true;
+            float y = hitJump * Physics.gravity.y * -1f;
+            if (characterMotor)
+            {
+                if (characterMotor.isGrounded) return false;
+                if (characterMotor.velocity.y > y)
+                {
+                    y = characterMotor.velocity.y;
+                }
+                else if (characterMotor.velocity.y < 0f)
+                {
+
+                }
+                else
+                {
+                    y = Mathf.Lerp(y, 0f, characterMotor.velocity.y / y);
+                }
+                characterMotor.velocity.y = y;
+            }
+            else if (rigidbody)
+            {
+                if (rigidbody.velocity.y > y)
+                {
+                    y = rigidbody.velocity.y;
+                }
+                else if (rigidbody.velocity.y < 0f)
+                {
+
+                }
+                else
+                {
+                    y = Mathf.Lerp(y, 0f, rigidbody.velocity.y / y);
+                }
+                Vector3 vector3 = rigidbody.velocity;
+                vector3.y = y;
+                rigidbody.velocity = vector3;
+            }
+            return false;
+        }
+    }
     public class MediumMeleeAttack : BaseMeleeAttack
     {
         public static float damageCoefficient => MediumMeleeAttackConfig.damageCoefficient.Value;
@@ -529,7 +682,7 @@ namespace Demolisher
             {
                 StopFiring();
                 FireMeleeAttack(attackDuration);
-                stopwatch = duration;
+                //stopwatch = duration;
                 if (NetworkServer.active) characterBody.SetBuffCount(Assets.InstantMeleeSwing.buffIndex, 0);
             }
             if (!firing)
@@ -723,17 +876,7 @@ namespace Demolisher
         }
         public virtual void ShieldBash()
         {
-            Vector3 velocity = Vector3.zeroVector;
-            if (characterMotor)
-            {
-                velocity = characterMotor.velocity;
-            }
-            else if (rigidbody)
-            {
-                velocity = rigidbody.velocity;
-            }
-            velocity.y = 0f;
-            Vector3 force = velocity * shieldBashVelocityForceMultiplier + (Physics.gravity * -1f * shieldBashGravityForceMultiplier);
+            Vector3 force = direction * characterBody.moveSpeed * walkSpeedMultiplier * shieldBashVelocityForceMultiplier + (Physics.gravity * -1f * shieldBashGravityForceMultiplier);
             bulletAttack.SetBonusForce(force);
             UpdateBulletAttack(characterBody.damage * shieldBashDamageCoefficient, shieldBashProcCoefficient, 0f, RollCrit(), shieldBashRadiusMultiplier, shieldBashDistance, false);
             ContinueFireMeleeAttack(new Ray(characterBody.corePosition, aimDirectionGrounded));
@@ -741,7 +884,6 @@ namespace Demolisher
         public override void OnEnter()
         {
             base.OnEnter();
-            if (NetworkServer.active) characterBody.AddBuff(Assets.InstantMeleeSwing);
             SetValues();
             CreateBulletAttack(true);
             bulletAttack.SetForceMassIsOne(true);
@@ -781,6 +923,8 @@ namespace Demolisher
                 modelAnimator.SetBool(AnimationParameters.isSprinting, true);
                 modelAnimator.SetFloat(AnimationParameters.turnAngle, 0f);
             }
+            if (!isAuthority) return;
+            characterBody.AddClientBuff(Assets.InstantMeleeSwing);
         }
         public override void Update()
         {
@@ -875,6 +1019,7 @@ namespace Demolisher
         public Vector3 direction;
         public Vector3 rotation;
         public Animator animator;
+        public float magnitude;
         public override void FixedUpdate()
         {
             base.FixedUpdate();
@@ -930,11 +1075,11 @@ namespace Demolisher
             blastAttack.Fire();
             if (characterMotor)
             {
-                characterMotor.velocity = direction * characterMotor.walkSpeed;
+                characterMotor.velocity = direction * Mathf.Max(characterMotor.walkSpeed, magnitude);
             }
             else if (rigidbody)
             {
-                rigidbody.velocity = direction * characterBody.moveSpeed;
+                rigidbody.velocity = direction * Mathf.Max(characterMotor.walkSpeed, magnitude);
             }
         }
         public virtual void SetValues()
@@ -964,6 +1109,14 @@ namespace Demolisher
             CreateBulletAttack();
             UpdateBulletAttack(damageCoefficient * characterBody.damage, procCoefficient, force, RollCrit(), radius, maxDistance, true);
             if (NetworkServer.active) characterBody.AddBuff(RoR2Content.Buffs.ArmorBoost);
+            if (characterMotor)
+            {
+                magnitude = characterMotor.velocity.magnitude;
+            }
+            else if (rigidbody)
+            {
+                magnitude = rigidbody.velocity.magnitude;
+            }
         }
         public override void OnExit()
         {
@@ -1887,10 +2040,6 @@ namespace Demolisher
             {
                 demolisherModel.devilCount--;
             }
-            if (NetworkServer.active)
-            {
-                characterBody.SetBuffCount(Assets.InstantMeleeSwing.buffIndex, 0);
-            }
         }
         public virtual void SetValues()
         {
@@ -1936,7 +2085,7 @@ namespace Demolisher
                 modelAnimator.SetBool(AnimationParameters.isSprinting, false);
                 modelAnimator.SetFloat(AnimationParameters.turnAngle, 0f);
             }
-            if (NetworkServer.active) characterBody.AddBuff(Assets.InstantMeleeSwing);
+            if (isAuthority) characterBody.AddClientBuff(Assets.InstantMeleeSwing);
             stopwatch = 0f;
         }
         private void HandleSkill(GenericSkill skillSlot, ref InputBankTest.ButtonState buttonState)
@@ -2453,11 +2602,13 @@ namespace Demolisher
 
             }
             InstantiatePrefabBehavior instantiatePrefabBehavior = GetComponent<InstantiatePrefabBehavior>();
-            if (instantiatePrefabBehavior)
-            {
-                GenericPickupController genericPickupController = instantiatePrefabBehavior.targetTransform.GetChild(0).GetComponent<GenericPickupController>();
-                if (genericPickupController) genericPickupController.enabled = true;
-            }
+            if (!instantiatePrefabBehavior) return;
+            Transform transform = instantiatePrefabBehavior.targetTransform;
+            if (!transform) return;
+            Transform transform1 = transform.GetChild(0);
+            if (!transform1) return;
+            GenericPickupController genericPickupController = transform1.GetComponent<GenericPickupController>();
+            if (genericPickupController) genericPickupController.enabled = true;
         }
         public override void OnExit()
         {

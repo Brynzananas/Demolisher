@@ -41,6 +41,7 @@ namespace Demolisher
             if (characterBody == null) return;
             CharacterMotor characterMotor = characterBody.characterMotor;
             if (characterMotor == null) return;
+            DemolisherFeetEffectsHolder demolisherFeetEffectsHolder = characterMotor.gameObject.AddComponent<DemolisherFeetEffectsHolder>();
             GameObject modelObject = characterBody.modelLocator?.modelTransform?.gameObject;
             if (modelObject == null) return;
             ChildLocator childLocator = modelObject.GetComponent<ChildLocator>();
@@ -55,9 +56,10 @@ namespace Demolisher
                 GameObject gameObject = GameObject.Instantiate(Assets.FeetEffect);
                 gameObject.name = Assets.FeetEffect.name;
                 DemolisherFeetEffect demolisherFeetEffect = gameObject.GetComponent<DemolisherFeetEffect>();
-                demolisherFeetEffect.characterMotor = characterMotor;
+                //demolisherFeetEffect.characterMotor = characterMotor;
                 gameObject.transform.SetParent(transform, false);
-                characterMotor.onHitGroundAuthority += demolisherFeetEffect.OnLanded;
+                demolisherFeetEffectsHolder.demolisherFeetEffects.Add(demolisherFeetEffect);
+                //characterMotor.onHitGroundAuthority += demolisherFeetEffect.OnLanded;
             }
         }
 

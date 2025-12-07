@@ -132,7 +132,9 @@ namespace Demolisher
             On.RoR2.CharacterMotor.OnGroundHit += CharacterMotor_OnGroundHit;
             On.RoR2.CharacterMotor.ModifyGravity += CharacterMotor_ModifyGravity;
             SceneDirector.onPrePopulateSceneServer += SceneDirector_onPrePopulateSceneServer;
+            BrynzaAPI.BrynzaAPI.GetExtraAirControlFromVelocityAdd += BrynzaAPI_GetExtraAirControlFromVelocityAdd;
         }
+
         public static void UnsetHooks()
         {
             if (!hooksSet) return;
@@ -153,6 +155,12 @@ namespace Demolisher
             On.RoR2.CharacterMotor.OnGroundHit -= CharacterMotor_OnGroundHit;
             On.RoR2.CharacterMotor.ModifyGravity -= CharacterMotor_ModifyGravity;
             SceneDirector.onPrePopulateSceneServer -= SceneDirector_onPrePopulateSceneServer;
+            BrynzaAPI.BrynzaAPI.GetExtraAirControlFromVelocityAdd -= BrynzaAPI_GetExtraAirControlFromVelocityAdd;
+        }
+        public static float DemolisherExtraAirControlFromVelocityAdd = 15f;
+        private static float BrynzaAPI_GetExtraAirControlFromVelocityAdd(CharacterMotor characterMotor)
+        {
+            return characterMotor.body.GetBuffCount(Assets.DemolisherAirControlFromVelocityAddBuff) * DemolisherExtraAirControlFromVelocityAdd;
         }
         public static float BootsPullStrength => BootsConfig.pullStrength.Value;
         public static float timeUntilCanPull = 0.5f;

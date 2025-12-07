@@ -111,6 +111,7 @@ namespace Demolisher
         public static BuffDef BombHit;
         public static BuffDef InstantMeleeSwing;
         public static BuffDef IgnoreBoots;
+        public static BuffDef DemolisherAirControlFromVelocityAddBuff;
         public static ItemDef BootsPassive;
         public static DamageAPI.ModdedDamageType SharpnessDamageType = DamageAPI.ReserveDamageType();
         public static DamageAPI.ModdedDamageType SoftnessDamageType = DamageAPI.ReserveDamageType();
@@ -221,6 +222,7 @@ namespace Demolisher
             Trail = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Effects/DemolisherTrailEffect.prefab").RegisterEffect();
             DemolisherTracer = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Effects/DemolisherTracer.prefab").RegisterEffect();
             WhirlwindEffect = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Effects/DemolisherWhirlwind.prefab").RegisterEffect();
+            DemolisherAirControlFromVelocityAddBuff = assetBundle.LoadAsset<BuffDef>("Assets/Demolisher/Buffs/DemolisherAirControlFromVelocityAddBuff.asset").RegisterBuffDef();
             GrenadeProjectile = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Projectiles/DemolisherGrenadeProjectile.prefab").RegisterProjectile(ModifyRocketJump);
             StickyProjectile = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Projectiles/DemolisherStickyProjectile.prefab").RegisterProjectile(ModifyRocketJump);
             HookProjectile = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Projectiles/DemolisherHookProjectile.prefab").RegisterProjectile();
@@ -318,6 +320,8 @@ namespace Demolisher
             //typeof(FireGrenadeNetwork).RegisterEntityState();
             //typeof(FireGrenadeHoldNetwork).RegisterEntityState();
             typeof(MediumMeleeAttack).RegisterEntityState();
+            typeof(MediumMeleeAttackWindUp).RegisterEntityState();
+            typeof(MediumMeleeAttackWindDown).RegisterEntityState();
             typeof(ShieldCharge).RegisterEntityState();
             typeof(Detonate).RegisterEntityState();
             typeof(WhirlwindMelee).RegisterEntityState();
@@ -360,7 +364,7 @@ namespace Demolisher
         {
             RocketJumpComponent rocketJumpComponent = projectile.GetComponent<RocketJumpComponent>();
             if (!rocketJumpComponent) return;
-            rocketJumpComponent.buffsWhileMidair = [BrynzaAPI.Assets.KeepVelocityBuff, BrynzaAPI.Assets.AirControlFromVelocityAddBuff, BrynzaAPI.Assets.AirControlFromVelocityAddBuff, BrynzaAPI.Assets.AirControlFromVelocityAddBuff, BrynzaAPI.Assets.AirControlFromVelocityAddBuff, BrynzaAPI.Assets.AirControlFromVelocityAddBuff, BrynzaAPI.Assets.AirControlFromVelocityAddBuff, BrynzaAPI.Assets.AirControlFromVelocityAddBuff, BrynzaAPI.Assets.AirControlFromVelocityAddBuff, BrynzaAPI.Assets.AirControlFromVelocityAddBuff, BrynzaAPI.Assets.AirControlFromVelocityAddBuff, BrynzaAPI.Assets.AirControlFromVelocityAddBuff, BrynzaAPI.Assets.AirControlFromVelocityAddBuff, BrynzaAPI.Assets.AirControlFromVelocityAddBuff, BrynzaAPI.Assets.AirControlFromVelocityAddBuff, BrynzaAPI.Assets.AirControlFromVelocityAddBuff];
+            rocketJumpComponent.buffsWhileMidair = [BrynzaAPI.Assets.KeepVelocityBuff, DemolisherAirControlFromVelocityAddBuff];
         }
     }
 }
