@@ -24,6 +24,7 @@ namespace Demolisher
         public static List<Type> states = new List<Type>();
         public static List<NetworkSoundEventDef> sounds = new List<NetworkSoundEventDef>();
         public static List<UnlockableDef> unlockableDefs = new List<UnlockableDef>();
+        public static List<DroneDef> drones = new List<DroneDef>();
         public static List<GameObject> masters = new List<GameObject>();
         public static List<EffectDef> effects = new List<EffectDef>();
         public IEnumerator FinalizeAsync(FinalizeAsyncArgs args)
@@ -55,6 +56,7 @@ namespace Demolisher
             contentPack.masterPrefabs.Add([.. masters]);
             contentPack.effectDefs.Add([.. effects]);
             contentPack.itemDefs.Add([.. items]);
+            //contentPack.droneDefs.Add([.. drones]);
             yield break;
         }
     }

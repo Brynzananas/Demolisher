@@ -173,7 +173,7 @@ namespace Demolisher
                 if (inputBankTest && inputBankTest.jump.down && !inputBankTest.jump.justPressed)
                 {
                     Inventory inventory = characterBody?.inventory;
-                    if (inventory.GetItemCountEffective(Assets.BootsPassive) > 0) verticalVelocity -= BootsPullStrength * deltaTime;
+                    if (inventory && inventory.GetItemCountEffective(Assets.BootsPassive) > 0) verticalVelocity -= BootsPullStrength * deltaTime;
                 }
             }
             orig(self, ref verticalVelocity, ref gravity, deltaTime);
@@ -450,6 +450,7 @@ namespace Demolisher
         private static void HealthComponent_TakeDamageProcess1(MonoMod.Cil.ILContext il)
         {
             ILCursor c = new ILCursor(il);
+            int locid = 10;
             if (c.TryGotoNext(MoveType.After,
                     x => x.MatchLdloc(0),
                     x => x.MatchLdfld(out FieldReference),
@@ -458,55 +459,69 @@ namespace Demolisher
                 ))
             {
                 ThatFuckingStructThatIHate = FieldReference.DeclaringType.Resolve();
-                c.Emit(OpCodes.Ldarg_0);
-                c.Emit(OpCodes.Ldloc_0);
-                c.Emit(OpCodes.Ldfld, ThatFuckingStructThatIHate.Fields[2]);
-                c.Emit(OpCodes.Ldloc_0);
-                c.Emit(OpCodes.Ldfld, ThatFuckingStructThatIHate.Fields[1]);
-                c.Emit(OpCodes.Ldloc, 9);
-                c.EmitDelegate(HandleSharpness);
-                float HandleSharpness(HealthComponent healthComponent, DamageInfo damageInfo, CharacterBody attackerBody, float damage)
+                if (c.TryGotoPrev(MoveType.After,
+                    x => x.MatchLdloc(0),
+                    x => x.MatchLdfld(out _),
+                    x => x.MatchLdfld<DamageInfo>(nameof(DamageInfo.damage)),
+                    x => x.MatchStloc(out locid)
+                ))
                 {
-                    CharacterBody victimBody = healthComponent.body;
-                    if (damageInfo.HasModdedDamageType(Assets.BombDamageType))
+                    c.Emit(OpCodes.Ldarg_0);
+                    c.Emit(OpCodes.Ldloc_0);
+                    c.Emit(OpCodes.Ldfld, ThatFuckingStructThatIHate.Fields[2]);
+                    c.Emit(OpCodes.Ldloc_0);
+                    c.Emit(OpCodes.Ldfld, ThatFuckingStructThatIHate.Fields[1]);
+                    c.Emit(OpCodes.Ldloc, locid);
+                    c.EmitDelegate(HandleSharpness);
+                    float HandleSharpness(HealthComponent healthComponent, DamageInfo damageInfo, CharacterBody attackerBody, float damage)
                     {
-                        if (victimBody.HasBuff(Assets.BombHit))
+                        CharacterBody victimBody = healthComponent.body;
+                        if (damageInfo.HasModdedDamageType(Assets.BombDamageType))
                         {
-                            damage *= BombDoubleDonkDamageMultiplier;
-                            EffectData effectData = new EffectData
+                            if (victimBody.HasBuff(Assets.BombHit))
                             {
-                                origin = damageInfo.inflictor ? damageInfo.inflictor.transform.position : damageInfo.position,
-                                scale = 3f
-                            };
-                            EffectManager.SpawnEffect(Assets.DoubleDonk.prefab, effectData, true);
-                            victimBody.RemoveBuff(Assets.BombHit);
-                        }
-                    }
-                    if (damageInfo.HasModdedDamageType(Assets.SharpnessDamageType))
-                    {
-                        if (!victimBody.HasBuff(Assets.SharpnessCooldown))
-                        {
-                            damage *= SharpnessDamageMultiplier;
-                            victimBody.AddTimedBuff(Assets.SharpnessCooldown, SharpnessCooldown);
-                        }
-                        if (!damageInfo.crit)
-                        {
-                            int buffCount = attackerBody.GetBuffCount(Assets.SharpnessCritAddition);
-                            bool crit = Util.CheckRoll(buffCount * SharpnessCritAddition);
-                            if (crit)
-                            {
-                                attackerBody.SetBuffCount(Assets.SharpnessCritAddition.buffIndex, 0);
-                                damageInfo.crit = true;
-                            }
-                            else
-                            {
-                                attackerBody.AddBuff(Assets.SharpnessCritAddition);
+                                damage *= BombDoubleDonkDamageMultiplier;
+                                EffectData effectData = new EffectData
+                                {
+                                    origin = damageInfo.inflictor ? damageInfo.inflictor.transform.position : damageInfo.position,
+                                    scale = 3f
+                                };
+                                EffectManager.SpawnEffect(Assets.DoubleDonk.prefab, effectData, true);
+                                victimBody.RemoveBuff(Assets.BombHit);
                             }
                         }
+                        if (!attackerBody) return damage;
+                        if (damageInfo.HasModdedDamageType(Assets.SharpnessDamageType))
+                        {
+                            if (!victimBody.HasBuff(Assets.SharpnessCooldown))
+                            {
+                                damage *= SharpnessDamageMultiplier;
+                                victimBody.AddTimedBuff(Assets.SharpnessCooldown, SharpnessCooldown);
+                            }
+                            if (!damageInfo.crit)
+                            {
+                                int buffCount = attackerBody.GetBuffCount(Assets.SharpnessCritAddition);
+                                bool crit = Util.CheckRoll(buffCount * SharpnessCritAddition);
+                                if (crit)
+                                {
+                                    attackerBody.SetBuffCount(Assets.SharpnessCritAddition.buffIndex, 0);
+                                    damageInfo.crit = true;
+                                }
+                                else
+                                {
+                                    attackerBody.AddBuff(Assets.SharpnessCritAddition);
+                                }
+                            }
+                        }
+                        return damage;
                     }
-                    return damage;
+                    c.Emit(OpCodes.Stloc, locid);
                 }
-                c.Emit(OpCodes.Stloc, 9);
+                else
+                {
+                    Debug.LogError(il.Method.Name + " IL Hook 2 failed!");
+                }
+               
             }
             else
             {
