@@ -78,7 +78,7 @@ namespace Demolisher
             base.SetServerTracked(false);
             base.OnBodyRequirementBroken();
         }
-        public static int count = 500;
+        public static int count = 350;
         public class FlyingEnemyKillServer : BaseServerAchievement
         {
             public override void OnInstall()
@@ -94,7 +94,17 @@ namespace Demolisher
 
             public void OnCharacterDeath(DamageReport damageReport)
             {
-                if (!(damageReport.damageInfo.HasModdedDamageType(Assets.SharpnessDamageType) || damageReport.damageInfo.HasModdedDamageType(Assets.SoftnessDamageType) || damageReport.damageInfo.HasModdedDamageType(Assets.ChaosDamageType)) || !damageReport.victim) return;
+                CharacterBody characterBody = damageReport.attackerBody;
+                if (!characterBody) return;
+                if (characterBody.characterMotor)
+                {
+                    if (!characterBody.characterMotor.isGrounded) return;
+                }
+                else
+                {
+                    return;
+                }
+                if (!damageReport.victim || !(damageReport.damageInfo.HasModdedDamageType(Assets.SharpnessDamageType) || damageReport.damageInfo.HasModdedDamageType(Assets.SoftnessDamageType) || damageReport.damageInfo.HasModdedDamageType(Assets.ChaosDamageType))) return;
                 CharacterBody body = damageReport.victim.body;
                 if (!body || !body.isFlying) return;
                 count++;

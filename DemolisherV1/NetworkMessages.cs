@@ -40,8 +40,10 @@ namespace Demolisher
             CharacterBody characterBody = bodyObject ? bodyObject.GetComponent<CharacterBody>() : null;
             if (characterBody == null) return;
             CharacterMotor characterMotor = characterBody.characterMotor;
-            if (characterMotor == null) return;
-            DemolisherFeetEffectsHolder demolisherFeetEffectsHolder = characterMotor.gameObject.AddComponent<DemolisherFeetEffectsHolder>();
+            if (characterMotor == null || characterMotor.isGrounded) return;
+            DemolisherFeetEffectsHolder demolisherFeetEffectsHolder = characterMotor.gameObject.GetComponent<DemolisherFeetEffectsHolder>();
+            if (demolisherFeetEffectsHolder) return;
+            demolisherFeetEffectsHolder = characterMotor.gameObject.AddComponent<DemolisherFeetEffectsHolder>();
             GameObject modelObject = characterBody.modelLocator?.modelTransform?.gameObject;
             if (modelObject == null) return;
             ChildLocator childLocator = modelObject.GetComponent<ChildLocator>();
@@ -66,62 +68,6 @@ namespace Demolisher
         public void Serialize(NetworkWriter writer)
         {
             writer.Write(networkInstanceId);
-        }
-    }
-    public class DemolisherTallSwordNetMessage : INetMessage
-    {
-        private DemolisherSwordPillarProjectile _projectileController;
-        private int _skillIndex;
-        public DemolisherTallSwordNetMessage()
-        {
-
-        }
-        public DemolisherTallSwordNetMessage(DemolisherSwordPillarProjectile projectileController, DemolisherWeaponSkillDef demolisherWeaponSkillDef)
-        {
-            _projectileController = projectileController;
-            _skillIndex = demolisherWeaponSkillDef.skillIndex;
-        }
-        public void Deserialize(NetworkReader reader)
-        {
-            _projectileController = reader.ReadGameObject().GetComponent<DemolisherSwordPillarProjectile>();
-            _skillIndex = reader.ReadInt32();
-        }
-
-        public void OnReceived()
-        {
-            SkillDef skillDef = SkillCatalog.GetSkillDef(_skillIndex);
-            if (!skillDef) return;
-            DemolisherWeaponSkillDef demolisherWeaponSkillDef = skillDef as DemolisherWeaponSkillDef;
-            if (!demolisherWeaponSkillDef) return;
-            DemolisherBulletAttackWeaponDef demolisherBulletAttackWeaponDef = demolisherWeaponSkillDef.demolisherWeaponDef ? demolisherWeaponSkillDef.demolisherWeaponDef as DemolisherBulletAttackWeaponDef : null;
-            if (!demolisherBulletAttackWeaponDef) return;
-            object attack = (object)_projectileController.bulletAttack;
-            demolisherBulletAttackWeaponDef.OneTimeModification(_projectileController.projectileController, ref attack);
-        }
-
-        public void Serialize(NetworkWriter writer)
-        {
-            writer.Write(_projectileController.gameObject);
-            writer.Write(_skillIndex);
-        }
-    }
-    public class VoicelineNetMessage : INetMessage
-    {
-        int id;
-        public void Deserialize(NetworkReader reader)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void OnReceived()
-        {
-            VoicelineDef voicelineDef = VoicelineDef.voicelineDefs[id];
-            if (voicelineDef == null) return;
-        }
-
-        public void Serialize(NetworkWriter writer)
-        {
-            throw new NotImplementedException();
         }
     }
 }

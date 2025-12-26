@@ -133,6 +133,38 @@ namespace Demolisher
             On.RoR2.CharacterMotor.ModifyGravity += CharacterMotor_ModifyGravity;
             SceneDirector.onPrePopulateSceneServer += SceneDirector_onPrePopulateSceneServer;
             BrynzaAPI.BrynzaAPI.GetExtraAirControlFromVelocityAdd += BrynzaAPI_GetExtraAirControlFromVelocityAdd;
+            IL.RoR2.BulletAttack.DefaultHitCallbackImplementation += BulletAttack_DefaultHitCallbackImplementation;
+        }
+
+        private static void BulletAttack_DefaultHitCallbackImplementation(ILContext il)
+        {
+            ILCursor c = new ILCursor(il);
+            if (c.TryGotoNext(MoveType.Before,
+                    x => x.MatchNewobj<DamageInfo>()
+                ))
+            {
+                Instruction instruction = c.Next;
+                Instruction instruction2 = c.Next.Next;
+                c.Emit(OpCodes.Ldarg_0);
+                c.EmitDelegate(CheckDemolisherBulletAttack);
+                bool CheckDemolisherBulletAttack(BulletAttack bulletAttack) => bulletAttack == null ? false : bulletAttack is DemolisherBulletAttack;
+                c.Emit(OpCodes.Brfalse_S, instruction);
+                c.Emit(OpCodes.Ldarg_0);
+                c.EmitDelegate(CreateDemolisherDamageInfo);
+                DemolisherDamageInfo CreateDemolisherDamageInfo(BulletAttack bulletAttack)
+                {
+                    DemolisherDamageInfo demolisherDamageInfo = new DemolisherDamageInfo();
+                    DemolisherBulletAttack demolisherBulletAttack = bulletAttack as DemolisherBulletAttack;
+                    if (demolisherBulletAttack == null) return demolisherDamageInfo;
+                    demolisherDamageInfo.effectCoefficient = demolisherBulletAttack.effectCoefficient;
+                    return demolisherDamageInfo;
+                }
+                c.Emit(OpCodes.Br_S, instruction2);
+            }
+            else
+            {
+                DemolisherPlugin.Log.LogError(il.Method.Name + " IL Hook failed!");
+            }
         }
 
         public static void UnsetHooks()
@@ -351,6 +383,7 @@ namespace Demolisher
         public static SkillIcon altSecondary;
         public static SkillIcon altUtility;
         public static SkillIcon altSpecial;
+        public static float altIconYOffset = 150f;
         private static void HUD_Update(ILContext il)
         {
             ILCursor c = new ILCursor(il);
@@ -405,8 +438,10 @@ namespace Demolisher
                         {
                             altSkillIcon = GameObject.Instantiate(skillIcon, skillIcon.transform.parent);
                             Vector3 vector3 = altSkillIcon.transform.localPosition;
-                            vector3.y += 200f;
+                            vector3.y += altIconYOffset;
                             altSkillIcon.transform.localPosition = vector3;
+                            Transform transform = altSkillIcon.transform.Find("SkillBackgroundPanel");
+                            if (transform) transform.gameObject.SetActive(false);
                         }
                         switch (id)
                         {
@@ -439,7 +474,7 @@ namespace Demolisher
             }
             else
             {
-                Debug.LogError(il.Method.Name + " IL Hook 1 failed!");
+                DemolisherPlugin.Log.LogError(il.Method.Name + " IL Hook 1 failed!");
             }
         }
 
@@ -475,6 +510,7 @@ namespace Demolisher
                     c.EmitDelegate(HandleSharpness);
                     float HandleSharpness(HealthComponent healthComponent, DamageInfo damageInfo, CharacterBody attackerBody, float damage)
                     {
+                        DemolisherDamageInfo demolisherDamageInfo = damageInfo as DemolisherDamageInfo;
                         CharacterBody victimBody = healthComponent.body;
                         if (damageInfo.HasModdedDamageType(Assets.BombDamageType))
                         {
@@ -495,7 +531,7 @@ namespace Demolisher
                         {
                             if (!victimBody.HasBuff(Assets.SharpnessCooldown))
                             {
-                                damage *= SharpnessDamageMultiplier;
+                                damage *= Mathf.Max(1f, SharpnessDamageMultiplier * (demolisherDamageInfo == null ? 1f : demolisherDamageInfo.effectCoefficient));
                                 victimBody.AddTimedBuff(Assets.SharpnessCooldown, SharpnessCooldown);
                             }
                             if (!damageInfo.crit)
@@ -519,13 +555,13 @@ namespace Demolisher
                 }
                 else
                 {
-                    Debug.LogError(il.Method.Name + " IL Hook 2 failed!");
+                    DemolisherPlugin.Log.LogError(il.Method.Name + " IL Hook 2 failed!");
                 }
                
             }
             else
             {
-                Debug.LogError(il.Method.Name + " IL Hook 1 failed!");
+                DemolisherPlugin.Log.LogError(il.Method.Name + " IL Hook 1 failed!");
             }
         }
 
@@ -542,10 +578,11 @@ namespace Demolisher
             CharacterBody attackerBody = obj.attackerBody;
             CharacterBody victimBody = obj.victimBody;
             DamageInfo damageInfo = obj.damageInfo;
+            DemolisherDamageInfo demolisherDamageInfo = damageInfo as DemolisherDamageInfo;
             if (attackerBody)
             {
                 HealthComponent attackerHealthComponent = attackerBody.healthComponent;
-                if (attackerHealthComponent) if (damageInfo.HasModdedDamageType(Assets.SoftnessDamageType)) attackerHealthComponent.OverhealFraction(SoftnessHealOnHitPercentage / 100f);
+                if (attackerHealthComponent) if (damageInfo.HasModdedDamageType(Assets.SoftnessDamageType)) attackerHealthComponent.OverhealFraction(SoftnessHealOnHitPercentage / 100f * (demolisherDamageInfo == null ? 1f : demolisherDamageInfo.effectCoefficient));
                 if (damageInfo.HasModdedDamageType(Assets.ChaosDamageType) && !attackerBody.HasBuff(Assets.ChaosCooldown))
                 {
                     BlastAttack blastAttack = new BlastAttack

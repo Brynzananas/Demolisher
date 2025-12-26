@@ -7,6 +7,7 @@ using R2API;
 using R2API.Networking.Interfaces;
 using Rewired;
 using RoR2;
+using RoR2.Audio;
 using RoR2.HudOverlay;
 using RoR2.Projectile;
 using RoR2.Skills;
@@ -22,6 +23,7 @@ using UnityEngine.Events;
 using UnityEngine.Networking;
 using UnityEngine.UI;
 using UnityEngine.UIElements.StyleSheets;
+using static Demolisher.DemolisherSwordPillarProjectile;
 
 namespace Demolisher
 {
@@ -218,6 +220,7 @@ namespace Demolisher
         }
         public void CallSwapWeapons()
         {
+            SwapWeapons();
             if (NetworkServer.active)
             {
                 RpcSwapWeapons();
@@ -228,7 +231,11 @@ namespace Demolisher
             }
         }
         [ClientRpc]
-        public void RpcSwapWeapons() => SwapWeapons();
+        public void RpcSwapWeapons()
+        {
+            if (hasAuthority) return;
+            SwapWeapons();
+        }
         [Command]
         public void CmdSwapWeapons() => RpcSwapWeapons();
         public void ToggleWeapon(string name, bool toggle)
@@ -370,6 +377,8 @@ namespace Demolisher
     {
         public ProjectileController projectileController;
         public ProjectileDamage projectileDamage;
+        public string exitSound;
+        public LoopSoundDef loopSoundDef;
         public Vector3 aimVector = Vector3.up;
         public bool localRotation = false;
         public bool allowTrajectoryAimAssist = false;
@@ -384,6 +393,7 @@ namespace Demolisher
         public float radius = 1f;
         public float maxDistance = 1f;
         public float procCoefficient = 1f;
+        public float effectCoefficient = 1f;
         public bool sniper = false;
         public bool smartCollision = true;
         public float trajectoryAimAssistMultiplier = 0f;
@@ -397,12 +407,13 @@ namespace Demolisher
         [HideInInspector] public float updateStopwatch = 0f;
         public float resetInterval = 1f;
         [HideInInspector] public float resetStopwatch = 0f;
-        public BulletAttack bulletAttack;
+        public DemolisherBulletAttack bulletAttack;
+        private Vector3 previousPosition;
         public virtual void Awake()
         {
             if (projectileDamage == null) projectileDamage = GetComponent<ProjectileDamage>();
             if (projectileController == null) projectileController = GetComponent<ProjectileController>();
-            bulletAttack = new BulletAttack
+            bulletAttack = new DemolisherBulletAttack
             {
                 aimVector = aimVector,
                 allowTrajectoryAimAssist = allowTrajectoryAimAssist,
@@ -430,8 +441,14 @@ namespace Demolisher
                 tracerEffectPrefab = tracerEffectPrefab,
                 hitMask = hitMask,
                 stopperMask = stopperMask,
+                effectCoefficient = effectCoefficient,
             };
             bulletAttack.SetIgnoreHitTargets(true);
+        }
+        public virtual void Start()
+        {
+            previousPosition = transform.position;
+            if (loopSoundDef) Util.PlaySound(loopSoundDef.startSoundName, gameObject);
         }
         public virtual void UpdateBulletAttack()
         {
@@ -446,6 +463,7 @@ namespace Demolisher
             bulletAttack.spreadPitchScale = spreadPitchScale;
             bulletAttack.spreadYawScale = spreadYawScale;
             bulletAttack.procCoefficient = procCoefficient;
+            bulletAttack.procCoefficient = effectCoefficient;
             bulletAttack.radius = radius;
             bulletAttack.maxDistance = maxDistance;
             bulletAttack.origin = transform.position;
@@ -462,19 +480,12 @@ namespace Demolisher
             else
             {
                 bulletAttack.aimVector = aimVector;
-
             }
             updateStopwatch = 0f;
         }
-        public void OneTimeMeleeModification(DemolisherBulletAttackWeaponDef demolisherBulletAttackWeaponDef)
-        {
-            object attack = bulletAttack;
-            demolisherBulletAttackWeaponDef.OneTimeModification(this, ref attack);
-        }
         public virtual void FireBulletAttack()
         {
-            if(NetworkServer.active)
-            bulletAttack.Fire();
+            if(NetworkServer.active) bulletAttack.Fire();
             fireStopwatch = 0f;
         }
         public virtual void Reset()
@@ -488,8 +499,14 @@ namespace Demolisher
             fireStopwatch += deltaTime;
             updateStopwatch += deltaTime;
         }
+        public virtual void OnDestroy()
+        {
+            if (loopSoundDef) Util.PlaySound(loopSoundDef.stopSoundName, gameObject);
+            if (!string.IsNullOrEmpty(exitSound)) PointSoundManager.EmitSoundLocal((AkEventIdArg)exitSound, previousPosition);
+        }
         public virtual void FixedUpdate()
         {
+            previousPosition = transform.position;
             IncrementTimers(Time.fixedDeltaTime);
             if (updateStopwatch >= updateInterval) UpdateBulletAttack();
             if (fireStopwatch >= fireInterval) FireBulletAttack();
@@ -500,6 +517,8 @@ namespace Demolisher
     public class DemolisherSwordPillarProjectile : ProjectileBulletAttack
     {
         public CharacterController characterController;
+        public DemolisherSwordPillarBodyMover demolisherSwordPillarBodyMover;
+        public float returnTime = 0.5f;
         public float lifetime = 1f;
         public float gravity = 3f;
         public AnimationCurve velocityOverLifetime = AnimationCurve.Constant(0f, 1f, 100f);
@@ -508,13 +527,18 @@ namespace Demolisher
         [HideInInspector] public DemolisherBulletAttackWeaponDef meleeWeapon;
         [HideInInspector] public FireTallSword fireTallSword;
         [HideInInspector] public InputBankTest inputBank;
+        private bool modified;
+        private Stack<Vector3> moveVectors = [];
+        private int count;
+        private bool reversed;
         public override void Awake()
         {
             base.Awake();
             if (characterController == null) characterController = GetComponent<CharacterController>();
         }
-        public void Start()
+        public override void Start()
         {
+            base.Start();
             Vector3 vector3 = transform.forward;
             vector3.y = 0f;
             vector3.Normalize();
@@ -532,19 +556,34 @@ namespace Demolisher
                     {
                         fireTallSword.stateTaken = true;
                         inputBank = fireTallSword.inputBank;
-                        object attack = bulletAttack;
                         OneTimeMeleeModification(meleeWeapon);
                         break;
                     }
                 }
             }
         }
+        public void OnEnable()
+        {
+            GlobalEventManager.onServerDamageDealt += GlobalEventManager_onServerDamageDealt;
+        }
+        private void GlobalEventManager_onServerDamageDealt(DamageReport obj)
+        {
+            if (demolisherSwordPillarBodyMover && obj.damageInfo != null && obj.victimBody && obj.damageInfo.inflictor && obj.damageInfo.inflictor == gameObject && !demolisherSwordPillarBodyMover.hitCharacterBodies.Contains(obj.victimBody)) demolisherSwordPillarBodyMover.AddHitBody(obj.victimBody, obj.victimBody.transform.position - transform.position);
+        }
+        public void OnDisable()
+        {
+            GlobalEventManager.onServerDamageDealt -= GlobalEventManager_onServerDamageDealt;
+        }
+        public void OneTimeMeleeModification(DemolisherBulletAttackWeaponDef demolisherBulletAttackWeaponDef)
+        {
+            object attack = this;
+            demolisherBulletAttackWeaponDef.OneTimeModification(this, ref attack);
+        }
         public override void UpdateBulletAttack()
         {
             base.UpdateBulletAttack();
             object attack = bulletAttack;
-            if (meleeWeapon != null && fireTallSword != null)
-            meleeWeapon.ModifyAttack(projectileController, ref attack);
+            if (meleeWeapon != null) meleeWeapon.ModifyAttack(this, ref attack);
         }
         public override void IncrementTimers(float deltaTime)
         {
@@ -556,12 +595,39 @@ namespace Demolisher
             base.FixedUpdate();
             if (NetworkServer.active)
             {
-                float velocity = velocityOverLifetime.Evaluate(timer / lifetime);
                 transform.forward = Vector3.RotateTowards(transform.forward, Direction(), steering / 57.3f, 0f);
-                Vector3 direction = (transform.forward * velocity) + (Physics.gravity * gravity);
-                characterController.Move(direction * Time.fixedDeltaTime);
+                Vector3 direction;
+                if (!reversed && timer >= returnTime) Reverse();
+                if (reversed)
+                {
+                    direction = moveVectors.Count > 0 ? moveVectors.Pop() : transform.position;
+                }
+                else
+                {
+                    float velocity = velocityOverLifetime.Evaluate(timer / lifetime);
+                    direction = ((transform.forward * velocity) + (Physics.gravity * gravity)) * Time.fixedDeltaTime;
+                }
+                if (reversed)
+                {
+                    transform.position = direction;
+                }
+                else
+                {
+                    characterController.Move(direction);
+                    AddPath();
+                }
                 if (timer >= lifetime) Destroy(gameObject);
             }
+        }
+        public void AddPath()
+        {
+            Vector3 vector3 = transform.position;
+            moveVectors.Push(vector3);
+        }
+        public void Reverse()
+        {
+            reversed = true;
+            gameObject.layer = LayerIndex.noCollision.intVal;
         }
         public Vector3 Direction()
         {
@@ -575,7 +641,7 @@ namespace Demolisher
             }
             else
             {
-                return Vector3.zero;
+                return transform.forward;
             }
         }
         public static Vector3 NearestPointOnLine(Vector3 linePnt, Vector3 lineDir, Vector3 pnt)
@@ -584,6 +650,67 @@ namespace Demolisher
             var v = pnt - linePnt;
             var d = Vector3.Dot(v, lineDir);
             return linePnt + lineDir * d;
+        }
+    }
+    public class DemolisherSwordPillarBodyMover : NetworkBehaviour
+    {
+        public Stack<HitBody> hitBodies = [];
+        public Stack<CharacterBody> hitCharacterBodies = [];
+        [Server] public void AddHitBody(CharacterBody characterBody, Vector3 vector3)
+        {
+            if (characterBody.currentVehicle && NetworkServer.active) characterBody.currentVehicle.EjectPassenger();
+            if (characterBody.hasEffectiveAuthority)
+            {
+                FinalAddHitBody(characterBody, vector3);
+            }
+            else
+            {
+                RpcAddHitBody(characterBody.networkIdentity, vector3);
+            }
+        }
+        [ClientRpc]
+        public void RpcAddHitBody(NetworkIdentity networkIdentity, Vector3 vector3)
+        {
+            if (!networkIdentity || !Util.HasEffectiveAuthority(networkIdentity)) return;
+            CharacterBody characterBody = networkIdentity.gameObject.GetComponent<CharacterBody>();
+            if (!characterBody) return;
+            FinalAddHitBody(characterBody, vector3);
+        }
+        public void FinalAddHitBody(CharacterBody characterBody, Vector3 vector3)
+        {
+            HitBody hitBody = new HitBody { characterBody = characterBody, relativePosition = vector3 };
+            hitBodies.Push(hitBody);
+            hitCharacterBodies.Push(characterBody);
+            HandleHitBody(hitBody);
+        }
+        public struct HitBody
+        {
+            public Vector3 relativePosition;
+            public CharacterBody characterBody;
+        }
+        public void HandleHitBody(HitBody hitBody)
+        {
+            CharacterBody characterBody = hitBody.characterBody;
+            if (!characterBody || !characterBody.hasEffectiveAuthority) return;
+            Vector3 vector3 = transform.position + hitBody.relativePosition;
+            if (characterBody.characterMotor)
+            {
+                characterBody.characterMotor.Motor.SetPosition(vector3);
+                characterBody.characterMotor.velocity = Vector3.zero;
+            }
+            else if (characterBody.rigidbody)
+            {
+                characterBody.rigidbody.position = vector3;
+                characterBody.rigidbody.velocity = Vector3.zero;
+            }
+            else
+            {
+                characterBody.transform.position = vector3;
+            }
+        }
+        public void FixedUpdate()
+        {
+            foreach (HitBody hitBody in hitBodies) HandleHitBody(hitBody);
         }
     }
     public class DemolisherSwordPillarGhost : MonoBehaviour
@@ -599,6 +726,7 @@ namespace Demolisher
             }
         }
         private DemolisherSwordPillarProjectile _demolisherSwordPillarProjectile;
+        public GameObject expirationEffectPrefab;
         public void Awake()
         {
             if(swordPillarTransform) swordPillarTransform.SetParent(null, true);
@@ -621,7 +749,17 @@ namespace Demolisher
         }
         public void OnDisable()
         {
-            if(swordPillarTransform) swordPillarTransform.gameObject.SetActive(false);
+            if (expirationEffectPrefab)
+            {
+                EffectData effectData = new EffectData
+                {
+                    origin = transform.position,
+                    rotation = swordPillarTransform.rotation
+                };
+                effectData.SetScale(swordPillarTransform.localScale);
+                EffectManager.SpawnEffect(expirationEffectPrefab, effectData, false);
+            }
+            if (swordPillarTransform) swordPillarTransform.gameObject.SetActive(false);
         }
         public void OnDestroy()
         {
@@ -632,6 +770,10 @@ namespace Demolisher
     {
         public EffectComponent effectComponent;
         public ParticleSystem[] swipeParticles;
+        public void Start()
+        {
+            if (effectComponent && effectComponent.effectData != null) Init(effectComponent.effectData.genericFloat);
+        }
         public void Init(float speed)
         {
             foreach (ParticleSystem particleSystem in swipeParticles) particleSystem.playbackSpeed = speed;
@@ -1000,24 +1142,31 @@ namespace Demolisher
         public void FixedUpdate()
         {
             if (NetworkServer.active)
-            for (int i = 0; i < pendingVoicelines.Count; i++)
-            {
-                PendingVoiceline pendingVoiceline = pendingVoicelines[i];
-                pendingVoiceline.timer -= Time.fixedDeltaTime;
-                if (pendingVoiceline.timer <= 0f)
+                for (int i = 0; i < pendingVoicelines.Count; i++)
                 {
-                    RpcPlayVoiceline(pendingVoiceline.voicelineDef.id);
-                    pendingVoicelines.Remove(pendingVoiceline);
+                    PendingVoiceline pendingVoiceline = pendingVoicelines[i];
+                    pendingVoiceline.timer -= Time.fixedDeltaTime;
+                    if (pendingVoiceline.timer <= 0f)
+                    {
+                        if (pendingVoiceline.transmit)
+                        {
+                            RpcPlayVoiceline(pendingVoiceline.voicelineDef.id);
+                        }
+                        else
+                        {
+                            PlayVoiceline(pendingVoiceline.voicelineDef);
+                        }
+                        pendingVoicelines.Remove(pendingVoiceline);
+                    }
                 }
-            }
         }
-        public void OnDisable() 
+        public void OnDisable()
         {
             GlobalEventManager.onCharacterDeathGlobal -= GlobalEventManager_onCharacterDeathGlobal;
         }
-        public void PlayVoiceline(VoicelineDef.VoicelineType voicelineType, float timer = 0f)
+        public void PlayVoiceline(VoicelineDef.VoicelineType voicelineType, float timer = 0f, bool transmit = false)
         {
-            if (!NetworkServer.active) return;
+            if (transmit && !NetworkServer.active) return;
             if (!VoicelineDef.voicelinesByType.ContainsKey(voicelineType)) return;
             List<VoicelineDef> voicelineDefs = VoicelineDef.voicelinesByType[voicelineType];
             if (voicelineDefs == null) return;
@@ -1029,12 +1178,21 @@ namespace Demolisher
                 {
                     timer = timer,
                     voicelineDef = voicelineDef,
+                    transmit = transmit
                 };
                 pendingVoicelines.Add(pendingVoiceline);
             }
             else
             {
-                RpcPlayVoiceline(voicelineDef.id);
+                if (transmit)
+                {
+                    RpcPlayVoiceline(voicelineDef.id);
+                }
+                else
+                {
+                    PlayVoiceline(voicelineDef);
+                }
+                    
             }
         }
         [ClientRpc]
@@ -1052,6 +1210,7 @@ namespace Demolisher
         {
             public VoicelineDef voicelineDef;
             public float timer;
+            public bool transmit;
         }
     }
     public class DemolisherGroundSlamEffect : MonoBehaviour
@@ -1260,12 +1419,12 @@ namespace Demolisher
         public new void OnEnable()
         {
             base.OnEnable();
-            modelSkinController?.onSkinApplied += OnDemolisherSkinApplied;
+            //modelSkinController?.onSkinApplied += OnDemolisherSkinApplied;
         }
         public new void OnDisable()
         {
             base.OnDisable();
-            modelSkinController?.onSkinApplied -= OnDemolisherSkinApplied;
+            //modelSkinController?.onSkinApplied -= OnDemolisherSkinApplied;
         }
         private void OnDemolisherSkinApplied(int obj)
         {
@@ -1296,8 +1455,10 @@ namespace Demolisher
         public EntityStateMachine characterStateMachine { get; private set; }
         public VehicleSeat vehicleSeat { get; set; }
         public ParticleSystem[] chains;
+        private bool found;
         public void Awake()
         {
+            if (NetworkServer.active) found = true;
             stateMachine = GetComponent<EntityStateMachine>();
             vehicleSeat = GetComponent<VehicleSeat>();
             childLocator = GetComponent<ChildLocator>();
@@ -1331,6 +1492,20 @@ namespace Demolisher
             //        Debug.Log("False");
             //    }
             //}
+        }
+        public void FixedUpdate()
+        {
+            if (found) return;
+            Transform transform = this.transform.Find("QuestVolatileBatteryWorldPickup(Clone)"); // This is terrible but I don't know why my Instantiate Prefab Behavior is not working correctly
+            if (transform)
+            {
+                Transform transform1 = childLocator ? childLocator.FindChild("FuelCellArray") : null;
+                if (transform1)
+                {
+                    transform.SetParent(transform1, false);
+                    found = true;
+                }
+            }
         }
         public void OnPassengerEnter(GameObject passenger)
         {
@@ -1510,7 +1685,14 @@ namespace Demolisher
             }
             uiAlphaDown = true;
             if (VisualsConfig.LobbyRed.Value) redAsFuck = Instantiate(Assets.IamRedAsFuck).GetComponent<Image>();
-            Util.PlaySound("Play_Demoman_mvm_m_autocappedintelligence02", gameObject);
+            if (VisualsConfig.DemolisherVoicelines.Value)
+            {
+                Util.PlaySound("Play_Demoman_mvm_m_autocappedintelligence02", gameObject);
+            }
+            else
+            {
+                Util.PlaySound("Play_HorseMan_AngryYell", gameObject);
+            }
         }
         public void Update()
         {
@@ -1719,6 +1901,10 @@ namespace Demolisher
         public float interval = 0.1f;
         public bool applyLossyScale;
         private float stopwatch;
+        public void OnEnable()
+        {
+            stopwatch = 0f;
+        }
         public void Update()
         {
             stopwatch += Time.deltaTime;
@@ -1730,22 +1916,25 @@ namespace Demolisher
         }
         public void AddAura()
         {
-            GameObject gameObject = Instantiate(Assets.Aura);
-            gameObject.transform.position = transform.position;
-            gameObject.transform.rotation = transform.rotation;
-            gameObject.transform.localScale = applyLossyScale ? transform.lossyScale : transform.localScale;
-            DemolisherAuraMesh demolisherAuraMesh = gameObject.GetComponent<DemolisherAuraMesh>();
-            if (demolisherAuraMesh)
+            EffectData effectData = new EffectData
             {
-                if (demolisherAuraMesh.meshFilter) skinnedMeshRenderer.BakeMesh(demolisherAuraMesh.meshFilter.mesh, true);
-                if (demolisherAuraMesh.meshRenderer)
-                {
-                    demolisherAuraMesh.meshRenderer.materials = skinnedMeshRenderer.materials;
-                    demolisherAuraMesh.meshRenderer.sharedMaterials = skinnedMeshRenderer.sharedMaterials;
-                    demolisherAuraMesh.meshRenderer.bounds = skinnedMeshRenderer.bounds;
-                }
-                demolisherAuraMesh.direction = transform.forward * -1f;
+                origin = transform.position,
+                rotation = transform.rotation
+            };
+            effectData.SetScale(applyLossyScale ? transform.lossyScale : transform.localScale);
+            EffectManager.SpawnEffect(Assets.AuraEffect.index, effectData, false);
+            GameObject gameObject = effectData.GetEffectInstance() ? effectData.GetEffectInstance().gameObject : null;
+            if (!gameObject) return;
+            DemolisherAuraMesh demolisherAuraMesh = gameObject.GetComponent<DemolisherAuraMesh>();
+            if (!demolisherAuraMesh) return;
+            if (demolisherAuraMesh.meshFilter) skinnedMeshRenderer.BakeMesh(demolisherAuraMesh.meshFilter.mesh, true);
+            if (demolisherAuraMesh.meshRenderer)
+            {
+                demolisherAuraMesh.meshRenderer.materials = skinnedMeshRenderer.materials;
+                demolisherAuraMesh.meshRenderer.sharedMaterials = skinnedMeshRenderer.sharedMaterials;
+                demolisherAuraMesh.meshRenderer.bounds = skinnedMeshRenderer.bounds;
             }
+            demolisherAuraMesh.direction = transform.forward * -1f;
         }
     }
     public class DemolisherAuraMesh : MonoBehaviour
@@ -1758,11 +1947,29 @@ namespace Demolisher
         public AnimationCurve fadeCurve = AnimationCurve.Linear(0f, 1f, 1f, 0f);
         public AnimationCurve speedCurve = AnimationCurve.Linear(0f, 1f, 1f, 1f);
         private float stopwach;
+        private EffectManagerHelper efh;
+
+        public void Start()
+        {
+            if (!efh) efh = GetComponent<EffectManagerHelper>();
+        }
         public void Update()
         {
             transform.position += direction * speed * speedCurve.Evaluate(stopwach / lifetime) * Time.deltaTime;
             stopwach += Time.deltaTime;
-            if (stopwach >= lifetime) Destroy(gameObject);
+            if (stopwach >= lifetime)
+            {
+                stopwach = 0f;
+                if (efh && efh.OwningPool != null)
+                {
+                    efh.OwningPool.ReturnObject(efh);
+                    return;
+                }
+                else
+                {
+                    Destroy(gameObject);
+                }
+            }
             if (meshRenderer)
                 foreach (Material material in meshRenderer.materials)
                 {
@@ -1785,23 +1992,9 @@ namespace Demolisher
         public void Start()
         {
             previousParent = transform.parent;
-            if (applied) return;
-            applied = true;
-            if (!characterModel) return;
-            if (particleCustomSimulationSpaceArray != null) SetParticleCustomSimulationSpace(false);
-            DemolisherModel demolisherModel = characterModel as DemolisherModel;
-            ModCompatabilities.EmoteCompatability.onDemolisherEmote += OnDemolisherEmote;
-            if (!demolisherModel) return;
-            if (devilObject)
-            {
-                demolisherModel.extraDevilObjects.Add(gameObject);
-            }
-            else
-            {
-                demolisherModel.extraNonDevilObjects.Add(gameObject);
-            }
+            Add();
         }
-        public void SetParticleCustomSimulationSpace(bool emote)
+        /*public void SetParticleCustomSimulationSpace(bool emote)
         {
             foreach (ParticleCustomSimulationSpace particleCustomSimulationSpace in particleCustomSimulationSpaceArray)
             {
@@ -1811,8 +2004,8 @@ namespace Demolisher
                 ParticleSystem.MainModule mainModule = particleCustomSimulationSpace.particleSystem.main;
                 mainModule.customSimulationSpace = transform;
             }
-        }
-        private void OnDemolisherEmote(string arg1, DemolisherModel model)
+        }*/
+        /*private void OnDemolisherEmote(string arg1, DemolisherModel model)
         {
             if (arg1 == "none")
             {
@@ -1825,12 +2018,44 @@ namespace Demolisher
                 if (transform) this.transform.SetParent(transform, false);
                 SetParticleCustomSimulationSpace(true);
             }
+        }*/
+        public void Add()
+        {
+            if (!characterModel) return;
+            if (applied) return;
+            applied = true;
+            DemolisherModel demolisherModel = characterModel as DemolisherModel;
+            //ModCompatabilities.EmoteCompatability.onDemolisherEmote += OnDemolisherEmote;
+            if (!demolisherModel) return;
+            if (devilObject)
+            {
+                if(!demolisherModel.extraDevilObjects.Contains(gameObject)) demolisherModel.extraDevilObjects.Add(gameObject);
+            }
+            else
+            {
+                if (!demolisherModel.extraNonDevilObjects.Contains(gameObject)) demolisherModel.extraNonDevilObjects.Add(gameObject);
+            }
         }
-
+        public void Remove()
+        {
+            if (!characterModel) return;
+            if (!applied) return;
+            applied = false;
+            DemolisherModel demolisherModel = characterModel as DemolisherModel;
+            //ModCompatabilities.EmoteCompatability.onDemolisherEmote -= OnDemolisherEmote;
+            if (!demolisherModel) return;
+            if (devilObject)
+            {
+                if (demolisherModel.extraDevilObjects.Contains(gameObject)) demolisherModel.extraDevilObjects.Remove(gameObject);
+            }
+            else
+            {
+                if (demolisherModel.extraNonDevilObjects.Contains(gameObject)) demolisherModel.extraNonDevilObjects.Remove(gameObject);
+            }
+        }
         public void OnDestroy()
         {
-            if (!applied) return;
-            ModCompatabilities.EmoteCompatability.onDemolisherEmote -= OnDemolisherEmote;
+            Remove();
         }
         [Serializable]
         public struct ParticleCustomSimulationSpace
@@ -1843,31 +2068,33 @@ namespace Demolisher
     public abstract class DemolisherConfigComponent<T> : MonoBehaviour where T : ConfigEntryBase
     {
         [SerializeField] public T config;
-    }
-    public class DemolisherBooleanConfigComponent : DemolisherConfigComponent<ConfigEntry<bool>>
-    {
         public UnityEvent<bool> onConfigChanged;
         public string section;
         public string key;
-        public void Awake()
+    }
+    public class DemolisherBooleanConfigComponent : DemolisherConfigComponent<ConfigEntry<bool>>
+    {
+        public virtual void OnEnable()
         {
-            if (DemolisherPlugin.configFile.TryGetEntry(section, key, out config))
+            if (config == null && DemolisherPlugin.configFile.TryGetEntry(section, key, out config))
             {
-                config.SettingChanged += Config_SettingChanged;
-                onConfigChanged?.Invoke(config.Value);
+                if (config == null) return;
             }
+            config.SettingChanged += Config_SettingChanged;
+            onConfigChanged?.Invoke(config.Value);
         }
-        public void OnDestroy()
+        public virtual void OnDisable()
         {
             config?.SettingChanged -= Config_SettingChanged;
         }
-        private void Config_SettingChanged(object sender, EventArgs e) => onConfigChanged?.Invoke(config.Value);
+        public virtual void Config_SettingChanged(object sender, EventArgs e) => onConfigChanged?.Invoke(config.Value);
     }
     public class DemolisherAimAnimator : MonoBehaviour
     {
         public static float smoothTime = 0.2f;
         public static float weightSmoothTime = 0.25f;
         public static float pitchToRollCoof = 90f;
+        public float maxPitch = 75f;
         public AimTransform[] transforms;
         public InputBankTest inputBankTest;
         public CharacterBody characterBody;
@@ -1920,6 +2147,8 @@ namespace Demolisher
             {
                 xDif += 360f;
             }
+            if (xDif > maxPitch) xDif = maxPitch;
+            if (xDif < -maxPitch) xDif = -maxPitch;
             difX = Mathf.SmoothDamp(difX, xDif, ref difXVelocity, smoothTime / characterBody.attackSpeed / (180f / Mathf.Abs(xDif)), float.PositiveInfinity, Time.deltaTime);
             difY = Mathf.SmoothDamp(difY, yDif, ref difYVelocity, smoothTime / characterBody.attackSpeed / (180f / Mathf.Abs(yDif)), float.PositiveInfinity, Time.deltaTime);
             for (int i = 0; i < transforms.Length; i++)
@@ -1957,6 +2186,49 @@ namespace Demolisher
             transform.localEulerAngles += rotation;
         }
     }
+    public class CopyTransform : MonoBehaviour
+    {
+        public Transform copyTransform;
+        public CopyMode copyPositionMode;
+        public CopyMode copyRotationMode;
+        public CopyMode copyScaleMode;
+        public void FixedUpdate()
+        {
+            if (!copyTransform) return;
+            if (copyPositionMode == CopyMode.FixedUpdate) transform.position = copyTransform.position;
+            if (copyRotationMode == CopyMode.FixedUpdate) transform.rotation = copyTransform.rotation;
+            if (copyScaleMode == CopyMode.FixedUpdate) transform.localScale = copyTransform.localScale;
+        }
+        public void EarlyUpdate()
+        {
+            if (!copyTransform) return;
+            if (copyPositionMode == CopyMode.EarlyUpdate) transform.position = copyTransform.position;
+            if (copyRotationMode == CopyMode.EarlyUpdate) transform.rotation = copyTransform.rotation;
+            if (copyScaleMode == CopyMode.EarlyUpdate) transform.localScale = copyTransform.localScale;
+        }
+        public void Update()
+        {
+            if (!copyTransform) return;
+            if (copyPositionMode == CopyMode.Update) transform.position = copyTransform.position;
+            if (copyRotationMode == CopyMode.Update) transform.rotation = copyTransform.rotation;
+            if (copyScaleMode == CopyMode.Update) transform.localScale = copyTransform.localScale;
+        }
+        public void LateUpdate()
+        {
+            if (!copyTransform) return;
+            if (copyPositionMode == CopyMode.LateUpdate) transform.position = copyTransform.position;
+            if (copyRotationMode == CopyMode.LateUpdate) transform.rotation = copyTransform.rotation;
+            if (copyScaleMode == CopyMode.LateUpdate) transform.localScale = copyTransform.localScale;
+        }
+        public enum CopyMode
+        {
+            None,
+            FixedUpdate,
+            EarlyUpdate,
+            Update,
+            LateUpdate
+        }
+    }
     [RequireComponent(typeof(ProjectileNetworkTransform))]
     public class FixProjectileNetworkTransform : MonoBehaviour
     {
@@ -1964,6 +2236,33 @@ namespace Demolisher
         public void Start()
         {
             projectileNetworkTransform.Interpolate();
+        }
+    }
+    public class DemolisherEntityStateMachine : EntityStateMachine
+    {
+        public new void Awake()
+        {
+            base.Awake();
+            commonDemolisherComponents = new CommonDemolisherComponentCache(this);
+        }
+        public CommonDemolisherComponentCache commonDemolisherComponents;
+        public struct CommonDemolisherComponentCache
+        {
+            public CommonDemolisherComponentCache(DemolisherEntityStateMachine demolisherEntityStateMachine)
+            {
+                demolisherComponent = demolisherEntityStateMachine.GetComponent<DemolisherComponent>();
+                demolisherVoicelinesComponent = demolisherEntityStateMachine.GetComponent<DemolisherVoicelinesComponent>();
+                CharacterBody characterBody = demolisherEntityStateMachine.commonComponents.characterBody;
+                if (!characterBody) return;
+                ModelLocator modelLocator = characterBody.modelLocator;
+                if (!modelLocator) return;
+                Transform transform = modelLocator.modelTransform;
+                if (!transform) return;
+                demolisherModel = transform.GetComponent<DemolisherModel>();
+            }
+            public DemolisherComponent demolisherComponent;
+            public DemolisherVoicelinesComponent demolisherVoicelinesComponent;
+            public DemolisherModel demolisherModel;
         }
     }
     public abstract class DemolisherWeaponDef : ScriptableObject
@@ -1995,10 +2294,21 @@ namespace Demolisher
         public override void OneTimeModification(object source, ref object attack)
         {
             base.OneTimeModification(source, ref attack);
-            BulletAttack bulletAttack = (BulletAttack)attack;
-            bulletAttack.damageType.damageType = damageType;
-            bulletAttack.damageType.damageTypeExtended = damageTypeExtended;
-            if(moddedDamageTypes != null) foreach (DamageAPI.ModdedDamageType moddedDamageType in moddedDamageTypes) bulletAttack.AddModdedDamageType(moddedDamageType);
+            ProjectileBulletAttack projectileBulletAttack = source == null ? null : source as ProjectileBulletAttack;
+            BulletAttack bulletAttack = projectileBulletAttack ? projectileBulletAttack.bulletAttack : (attack == null ? null : attack as BulletAttack);
+            if (bulletAttack != null)
+            {
+                bulletAttack.damageType.damageType = damageType;
+                bulletAttack.damageType.damageTypeExtended = damageTypeExtended;
+                if (moddedDamageTypes != null) foreach (DamageAPI.ModdedDamageType moddedDamageType in moddedDamageTypes) bulletAttack.AddModdedDamageType(moddedDamageType);
+            }
+            ProjectileDamage projectileDamage = projectileBulletAttack ? projectileBulletAttack.projectileDamage : (attack == null ? null : attack as ProjectileDamage);
+            if (projectileDamage != null)
+            {
+                projectileDamage.damageType.damageType = damageType;
+                projectileDamage.damageType.damageTypeExtended = damageTypeExtended;
+                if (moddedDamageTypes != null) foreach (DamageAPI.ModdedDamageType moddedDamageType in moddedDamageTypes) projectileDamage.damageType.AddModdedDamageType(moddedDamageType);
+            }
         }
         public override void ModifyAttack(object source, ref object attack)
         {
@@ -2086,7 +2396,16 @@ namespace Demolisher
             Death = 1,
             Kill = 2,
             TrapKill = 4,
-            Laugh = 8
+            Laugh = 8,
+            Landing = 16
         }
+    }
+    public class DemolisherDamageInfo : DamageInfo
+    {
+        public float effectCoefficient;
+    }
+    public class DemolisherBulletAttack : BulletAttack
+    {
+        public float effectCoefficient;
     }
 }

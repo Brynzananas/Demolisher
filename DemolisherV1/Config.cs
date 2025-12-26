@@ -166,6 +166,7 @@ namespace Demolisher
         {
             damageCoefficient = CreateConfig(MediumMeleeAttackName, DamageCoefficientName, 3f, "");
             procCoefficient = CreateConfig(MediumMeleeAttackName, ProcCoefficientName, 1f, "");
+            effectCoefficient = CreateConfig(MediumMeleeAttackName, EffectCoefficientName, 1f, "");
             baseDuration = CreateConfig(MediumMeleeAttackName, DurationName, 0.3f, "");
             baseAttackDuration = CreateConfig(MediumMeleeAttackName, AttackDurationName, 0.3f, "");
             radius = CreateConfig(MediumMeleeAttackName, RadiusName, 3f, "");
@@ -174,6 +175,7 @@ namespace Demolisher
             force = CreateConfig(MediumMeleeAttackName, ForceName, 500f, "");
             damageCoefficient.SettingChanged += OnConfigChanged;
             procCoefficient.SettingChanged += OnConfigChanged;
+            effectCoefficient.SettingChanged += OnConfigChanged;
             baseDuration.SettingChanged += OnConfigChanged;
             baseAttackDuration.SettingChanged += OnConfigChanged;
             radius.SettingChanged += OnConfigChanged;
@@ -184,6 +186,7 @@ namespace Demolisher
         private static void OnConfigChanged(object sender, EventArgs e) => Language.InitMediumMelee();
         public static ConfigEntry<float> damageCoefficient;
         public static ConfigEntry<float> procCoefficient;
+        public static ConfigEntry<float> effectCoefficient;
         public static ConfigEntry<float> baseAttackDuration;
         public static ConfigEntry<float> baseDuration;
         public static ConfigEntry<float> radius;
@@ -367,6 +370,7 @@ namespace Demolisher
         {
             damageCoefficient = CreateConfig(SlicingName, DamageCoefficientName, 5f, "");
             procCoefficient = CreateConfig(SlicingName, ProcCoefficientName, 1f, "");
+            effectCoefficient = CreateConfig(SlicingName, EffectCoefficientName, 2f, "");
             force = CreateConfig(SlicingName, ForceName, 300f, "");
             radius = CreateConfig(SlicingName, RadiusName, 3f, "");
             baseDistance = CreateConfig(SlicingName, DistanceName, 24f, "");
@@ -385,6 +389,7 @@ namespace Demolisher
         private static void OnConfigChanged(object sender, EventArgs e) => Language.InitSlicing();
         public static ConfigEntry<float> damageCoefficient;
         public static ConfigEntry<float> procCoefficient;
+        public static ConfigEntry<float> effectCoefficient;
         public static ConfigEntry<float> force;
         public static ConfigEntry<float> radius;
         public static ConfigEntry<float> baseTimeDivisionMultiplier;
