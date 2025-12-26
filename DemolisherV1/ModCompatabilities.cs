@@ -5,6 +5,7 @@ using RiskOfOptions.Options;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using UnityEngine;
 
 namespace Demolisher
 {
@@ -33,6 +34,10 @@ namespace Demolisher
         public static class RiskOfOptionsCompatability
         {
             public const string GUID = "com.rune580.riskofoptions";
+            public static void Init()
+            {
+                ModSettingsManager.SetModIcon(Assets.assetBundle.LoadAsset<Sprite>("Assets/Demolisher/Textures/DemoIconTS.png"));
+            }
             public static void AddConfig<T>(T config) where T : ConfigEntryBase
             {
                 if (config is ConfigEntry<float>)

@@ -171,7 +171,7 @@ namespace Demolisher
             baseAttackDuration = CreateConfig(MediumMeleeAttackName, AttackDurationName, 0.3f, "");
             radius = CreateConfig(MediumMeleeAttackName, RadiusName, 3f, "");
             maxDistance = CreateConfig(MediumMeleeAttackName, RangeName, 16f, "");
-            hitJump = CreateConfig(MediumMeleeAttackName, "Vertical Velocity on Hit", 0.4f, "");
+            hitJump = CreateConfig(MediumMeleeAttackName, "Vertical Velocity on Hit", 0.35f, "");
             force = CreateConfig(MediumMeleeAttackName, ForceName, 500f, "");
             damageCoefficient.SettingChanged += OnConfigChanged;
             procCoefficient.SettingChanged += OnConfigChanged;
@@ -225,7 +225,7 @@ namespace Demolisher
     {
         public static void Init()
         {
-            baseDuration = CreateConfig(ShieldChargeName, DurationName, 1.5f, "");
+            baseDuration = CreateConfig(ShieldChargeName, DurationName, 2f, "");
             baseWalkSpeedMultiplier = CreateConfig(ShieldChargeName, SpeedMultiplierName, 3.5f, "");
             shieldBashDamageCoefficient = CreateConfig(ShieldChargeName, DamageCoefficientName, 2f, "");
             shieldBashSpeedDamageCoefficient = CreateConfig(ShieldChargeName, SpeedDamageCoefficientName, 1f, "");

@@ -349,6 +349,7 @@ namespace Demolisher
             typeof(Arrived).RegisterEntityState();
             typeof(Open).RegisterEntityState();
             ContentManager.collectContentPackProviders += (addContentPackProvider) => addContentPackProvider(new Content());
+            if (DemolisherPlugin.riskOfOptionsEnabled) ModCompatabilities.RiskOfOptionsCompatability.Init();
         }
         public static void AutoSetBonusStockFromBody(SkillDef skillDef) => skillDef.SetBonusStockMultiplier(skillDef.rechargeStock);
         public static void AddLemurianProjectileGhost(GameObject projectile)
