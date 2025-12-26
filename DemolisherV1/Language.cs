@@ -119,14 +119,14 @@ namespace Demolisher
             AddLanguageToken(Assets.ShieldBash.skillNameToken, ShieldChargeName);
             AddLanguageToken(Assets.ShieldBash.skillNameToken, ShieldChargeNameRu, "ru");
             AddLanguageToken(Assets.ShieldBash.skillDescriptionToken, $"Charge forward for {utilityPrefix}{ShieldCharge.baseDuration} seconds{endPrefix}, bashing though enemies dealing {damagePrefix}{ShieldCharge.shieldBashDamageCoefficient * 100f}% base damage{endPrefix}.");
-            AddLanguageToken(Assets.ShieldBash.skillDescriptionToken, $"Рывнись вперед на {utilityPrefix}{ShieldCharge.baseDuration} секунд{endPrefix}, толкая врагов на {damagePrefix}{ShieldCharge.shieldBashDamageCoefficient * 100f}% урона{endPrefix}.", "ru");
+            AddLanguageToken(Assets.ShieldBash.skillDescriptionToken, $"Рывнитесь вперед на {utilityPrefix}{ShieldCharge.baseDuration} секунд{endPrefix}, толкая врагов на {damagePrefix}{ShieldCharge.shieldBashDamageCoefficient * 100f}% урона{endPrefix}.", "ru");
         }
         public static void InitChainDash()
         {
             AddLanguageToken(Assets.ChainDash.skillNameToken, ChainDashName);
             AddLanguageToken(Assets.ChainDash.skillNameToken, ChainDashNameRu, "ru");
             AddLanguageToken(Assets.ChainDash.skillDescriptionToken, $"Make a quick dash. Press skill button between {utilityPrefix}{ChainDash.baseStartWindow} and {ChainDash.baseEndWindow} seconds{endPrefix} to {utilityPrefix}chain dash{endPrefix}. Succesfull chain dash will {utilityPrefix}reset current melee attack{endPrefix}");
-            AddLanguageToken(Assets.ChainDash.skillDescriptionToken, $"Соверши быстрый уклон. Нажмите кнопку умения между {utilityPrefix}{ChainDash.baseStartWindow} и {ChainDash.baseEndWindow} секунд{endPrefix} чтобы сделать {utilityPrefix}цепной уклон{endPrefix}. Успешный цепной уклон {utilityPrefix}сбрасывает текущую атаку мечем{endPrefix}", "ru");
+            AddLanguageToken(Assets.ChainDash.skillDescriptionToken, $"Совершите быстрый уклон. Нажмите кнопку умения между {utilityPrefix}{ChainDash.baseStartWindow} и {ChainDash.baseEndWindow} секунд{endPrefix} чтобы сделать {utilityPrefix}цепной уклон{endPrefix}. Успешный цепной уклон {utilityPrefix}сбрасывает текущую атаку меча{endPrefix}", "ru");
         }
         public static void InitBoots()
         {
@@ -173,7 +173,7 @@ namespace Demolisher
             AddLanguageToken(Assets.SwordPillar.skillNameToken, FireTallSwordName);
             AddLanguageToken(Assets.SwordPillar.skillNameToken, FireTallSwordNameRu, "ru");
             AddLanguageToken(Assets.SwordPillar.skillDescriptionToken, $"{damagePrefix}Melee{endPrefix}. Fire tall projection of your sword that slices through enemies, impaling them for {damagePrefix}{FireTallSword.damageCoefficient * 100f}% base damage{endPrefix} and comes back.");
-            AddLanguageToken(Assets.SwordPillar.skillDescriptionToken, $"{damagePrefix}Меч{endPrefix}. Выстрелите высокой прекцией вашего мечя который прорубает сквозь врагов, {damagePrefix}{FireTallSword.damageCoefficient * 100f}% base damage{endPrefix} и возвращается.", "ru");
+            AddLanguageToken(Assets.SwordPillar.skillDescriptionToken, $"{damagePrefix}Меч{endPrefix}. Выстрелите высокой проекцией вашего мечя который прорубает сквозь врагов, нанося {damagePrefix}{FireTallSword.damageCoefficient * 100f}% урона{endPrefix} и возвращается.", "ru");
         }
         public static void InitParry()
         {
@@ -193,28 +193,28 @@ namespace Demolisher
             AddLanguageToken(Assets.Whirlwind.skillNameToken, WhirlwindMeleeName);
             AddLanguageToken(Assets.Whirlwind.skillNameToken, WhirlwindMeleeNameRu, "ru");
             AddLanguageToken(Assets.Whirlwind.skillDescriptionToken, $"{damagePrefix}Melee{endPrefix}. Hold to spin for {damagePrefix}{WhirlwindMelee.damageCoefficient * WhirlwindMelee.baseRotationsPerSecond * 100f}% base damage{endPrefix} per second.");
-            AddLanguageToken(Assets.Whirlwind.skillDescriptionToken, $"{damagePrefix}Меч{endPrefix}. Зажимайте чтобы вертеться нанося {damagePrefix}{WhirlwindMelee.damageCoefficient * WhirlwindMelee.baseRotationsPerSecond * 100f}% урона{endPrefix} в секунду.", "ru");
+            AddLanguageToken(Assets.Whirlwind.skillDescriptionToken, $"{damagePrefix}Меч{endPrefix}. Зажимайте чтобы вертеться, нанося {damagePrefix}{WhirlwindMelee.damageCoefficient * WhirlwindMelee.baseRotationsPerSecond * 100f}% урона{endPrefix} в секунду.", "ru");
         }
         public static void InitSlicing()
         {
             AddLanguageToken(Assets.Slicing.skillNameToken, SlicingName);
             AddLanguageToken(Assets.Slicing.skillNameToken, SlicingNameRu, "ru");
             AddLanguageToken(Assets.Slicing.skillDescriptionToken, $"{damagePrefix}Melee{endPrefix}. Stop time and enter slicing flow. Press primary attack to slice through enemies for {damagePrefix}{Slice.damageCoefficient * 100f}% base damage{endPrefix}. Press skill button to exit the flow.");
-            AddLanguageToken(Assets.Slicing.skillDescriptionToken, $"{damagePrefix}Меч{endPrefix}. Остановите время и войдите в режущий поток. Нажмите кнопку основной атаки чтобы резать сквозь врагов {damagePrefix}{Slice.damageCoefficient * 100f}% урона{endPrefix}. Нажмите кнопку умения чтобы выйти из потока", "ru");
+            AddLanguageToken(Assets.Slicing.skillDescriptionToken, $"{damagePrefix}Меч{endPrefix}. Остановите время и войдите в режущий поток. Нажмите кнопку основной атаки чтобы резать сквозь врагов, нанося {damagePrefix}{Slice.damageCoefficient * 100f}% урона{endPrefix}. Нажмите кнопку умения чтобы выйти из потока", "ru");
         }
         public static void InitCollapse()
         {
             AddLanguageToken(Assets.Collapse.skillNameToken, CollapseName);
             AddLanguageToken(Assets.Collapse.skillNameToken, CollapseNameRu, "ru");
-            AddLanguageToken(Assets.Collapse.skillDescriptionToken, $"Fire beam of collapse that explodes for {damagePrefix}{FireCollapse.explosionDamageCoefficient * 100f}% base damage{endPrefix}.");
-            AddLanguageToken(Assets.Collapse.skillDescriptionToken, $"Выстрелите луч коллапса который взрывается нанося {damagePrefix}{FireCollapse.explosionDamageCoefficient * 100f}% урона{endPrefix}.", "ru");
+            AddLanguageToken(Assets.Collapse.skillDescriptionToken, $"Fire beam of collapse that explodes on collision for {damagePrefix}{FireCollapse.explosionDamageCoefficient * 100f}% base damage{endPrefix}.");
+            AddLanguageToken(Assets.Collapse.skillDescriptionToken, $"Выстрелите луч коллапса который взрывается при столкновении, нанося {damagePrefix}{FireCollapse.explosionDamageCoefficient * 100f}% урона{endPrefix}.", "ru");
         }
         public static void InitLaser()
         {
             AddLanguageToken(Assets.Laser.skillNameToken, LaserName);
             AddLanguageToken(Assets.Laser.skillNameToken, LaserNameRu, "ru");
             AddLanguageToken(Assets.Laser.skillDescriptionToken, $"Hold to fire continuous beam of pressure for {damagePrefix}{Laser.damageCoefficient * (1f / Laser.hitInterval) * 100f}% base damage{endPrefix} per second.");
-            AddLanguageToken(Assets.Laser.skillDescriptionToken, $"Зажимайте чтобы стрелять непрерывным лучом давления наносящий {damagePrefix}{Laser.damageCoefficient * (1f / Laser.hitInterval) * 100f}% урона{endPrefix} в секунду.", "ru");
+            AddLanguageToken(Assets.Laser.skillDescriptionToken, $"Зажимайте чтобы стрелять непрерывным лучом давления, наносящий {damagePrefix}{Laser.damageCoefficient * (1f / Laser.hitInterval) * 100f}% урона{endPrefix} в секунду.", "ru");
         }
         public static void InitFly()
         {

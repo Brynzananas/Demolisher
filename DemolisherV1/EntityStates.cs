@@ -1686,7 +1686,7 @@ namespace Demolisher
         }
         public override InterruptPriority GetMinimumInterruptPriority()
         {
-            return InterruptPriority.Skill;
+            return InterruptPriority.PrioritySkill;
         }
     }
     public class Slice : DemolisherBaseState

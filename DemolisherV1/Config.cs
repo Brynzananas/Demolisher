@@ -46,7 +46,7 @@ namespace Demolisher
             CrosshairRangedPrimaryCharge = CreateConfig(name, "Demolisher Crosshair Ranged Primary Charge Meter", true, "");
             CrosshairRangedSecondaryCounter = CreateConfig(name, "Demolisher Crosshair Ranged Secondary Counter", true, "");
             CrosshairRangedSecondaryCharge = CreateConfig(name, "Demolisher Crosshair Ranged Secondary Charge Meter", true, "");
-            CrosshairMeleeSpecialCharge = CreateConfig(name, "Demolisher Crosshair Melee Charge Meter", true, "");
+            CrosshairMeleeSpecialCharge = CreateConfig(name, "Demolisher Crosshair Melee Special Charge Meter", true, "");
             CrosshairRangedSpecialCharge = CreateConfig(name, "Demolisher Crosshair Ranged Special Charge Meter", true, "");
             DemolisherVoicelines = CreateConfig(name, "Demolisher Voicelines", true, "");
             StickyRangeIndicator = CreateConfig(name, "Sticky Trap Blast Radius Indicator", true, "");
