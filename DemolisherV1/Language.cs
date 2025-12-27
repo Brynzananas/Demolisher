@@ -4,8 +4,11 @@ namespace Demolisher
 {
     public static class Language
     {
+        private static bool inited;
         public static void Init()
         {
+            if (inited) return;
+            inited = true;
             InitCharacter();
             InitAnchievements();
             InitSharpness();
@@ -226,7 +229,7 @@ namespace Demolisher
         public static void AddLanguageToken(string token, string text) => AddLanguageToken(token, text, "en");
         public static void AddLanguageToken(string token, string text, string lang)
         {
-            RoR2.Language language = RoR2.Language.languagesByName[lang];
+            RoR2.Language language = RoR2.Language.GetOrCreateLanguage(lang);
             if (language == null) return;
             if (language.stringsByToken.ContainsKey(token))
             {

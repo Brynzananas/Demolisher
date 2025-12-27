@@ -134,6 +134,14 @@ namespace Demolisher
             SceneDirector.onPrePopulateSceneServer += SceneDirector_onPrePopulateSceneServer;
             BrynzaAPI.BrynzaAPI.GetExtraAirControlFromVelocityAdd += BrynzaAPI_GetExtraAirControlFromVelocityAdd;
             IL.RoR2.BulletAttack.DefaultHitCallbackImplementation += BulletAttack_DefaultHitCallbackImplementation;
+            RoR2Application.onLoad += Language.Init;
+            On.EntityStates.GenericCharacterMain.ProcessJump_bool += GenericCharacterMain_ProcessJump_bool;
+        }
+
+        private static void GenericCharacterMain_ProcessJump_bool(On.EntityStates.GenericCharacterMain.orig_ProcessJump_bool orig, EntityStates.GenericCharacterMain self, bool ignoreRequirements)
+        {
+            if (self.HasBuff(Assets.DemolisherAirControlFromVelocityAddBuff) && (self.characterMotor ? !self.characterMotor.isGrounded : true) && self.characterBody.inventory && self.characterBody.inventory.GetItemCountEffective(Assets.BootsPassive) > 0) return;
+            orig(self, ignoreRequirements);
         }
 
         private static void BulletAttack_DefaultHitCallbackImplementation(ILContext il)
@@ -188,11 +196,13 @@ namespace Demolisher
             On.RoR2.CharacterMotor.ModifyGravity -= CharacterMotor_ModifyGravity;
             SceneDirector.onPrePopulateSceneServer -= SceneDirector_onPrePopulateSceneServer;
             BrynzaAPI.BrynzaAPI.GetExtraAirControlFromVelocityAdd -= BrynzaAPI_GetExtraAirControlFromVelocityAdd;
+            IL.RoR2.BulletAttack.DefaultHitCallbackImplementation -= BulletAttack_DefaultHitCallbackImplementation;
+            RoR2Application.onLoad -= Language.Init;
         }
         public static float DemolisherExtraAirControlFromVelocityAdd = 15f;
         private static float BrynzaAPI_GetExtraAirControlFromVelocityAdd(CharacterMotor characterMotor)
         {
-            return characterMotor.body.GetBuffCount(Assets.DemolisherAirControlFromVelocityAddBuff) * DemolisherExtraAirControlFromVelocityAdd;
+            return (characterMotor.body.GetBuffCount(Assets.DemolisherAirControlFromVelocityAddBuff) + characterMotor.body.GetClientBuffCount(Assets.DemolisherAirControlFromVelocityAddBuff)) * DemolisherExtraAirControlFromVelocityAdd;
         }
         public static float BootsPullStrength => BootsConfig.pullStrength.Value;
         public static float timeUntilCanPull = 0.5f;
@@ -376,7 +386,7 @@ namespace Demolisher
                     }
                 }
             }
-            Language.Init();
+            //Language.Init();
         }
 
         public static SkillIcon altPrimary;

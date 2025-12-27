@@ -117,7 +117,7 @@ namespace Demolisher
             }
             return base.CanExecuteSkill(skillSlot);
         }
-        public void SwapWeapons()
+        public virtual void SwapWeapons()
         {
             if (demolisherComponent == null) return;
             characterBody.AddSpreadBloom(spread);

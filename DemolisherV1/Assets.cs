@@ -182,6 +182,7 @@ namespace Demolisher
             DemolisherCharacterBody.preferredPodPrefab = DemolisherElevator; //LegacyResourcesAPI.Load<GameObject>("Prefabs/NetworkedObjects/SurvivorPod");//Addressables.LoadAssetAsync<GameObject>("RoR2/Base/SurvivorPod/SurvivorPod.prefab").WaitForCompletion();
             DemolisherCharacterBody._defaultCrosshairPrefab = LegacyResourcesAPI.Load<GameObject>("Prefabs/Crosshair/SimpleDotCrosshair");// Addressables.LoadAssetAsync<GameObject>("RoR2/Base/UI/StandardCrosshair.prefab").WaitForCompletion();
             CharacterMotor characterMotor = DemolisherCharacterBody.GetComponent<CharacterMotor>();
+            characterMotor.SetBunnyHop(true);
             //characterMotor.SetAirControlFromVelocityAdd(15f);
             //DemolisherCharacterBody.vehicleIdleStateMachine = Array.Empty<EntityStateMachine>();
             GameObject gameObject = DemolisherBody.GetComponent<ModelLocator>().modelTransform.gameObject;
@@ -373,7 +374,8 @@ namespace Demolisher
         {
             RocketJumpComponent rocketJumpComponent = projectile.GetComponent<RocketJumpComponent>();
             if (!rocketJumpComponent) return;
-            rocketJumpComponent.buffsWhileMidair = [BrynzaAPI.Assets.KeepVelocityBuff, DemolisherAirControlFromVelocityAddBuff];
+            //rocketJumpComponent.buffsWhileMidair = [BrynzaAPI.Assets.KeepVelocityBuff, DemolisherAirControlFromVelocityAddBuff];
+            rocketJumpComponent.clientBuffsWhileMidair = [BrynzaAPI.Assets.KeepVelocityBuff, DemolisherAirControlFromVelocityAddBuff];
         }
     }
 }
