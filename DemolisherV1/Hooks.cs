@@ -140,7 +140,7 @@ namespace Demolisher
 
         private static void GenericCharacterMain_ProcessJump_bool(On.EntityStates.GenericCharacterMain.orig_ProcessJump_bool orig, EntityStates.GenericCharacterMain self, bool ignoreRequirements)
         {
-            if (self.HasBuff(Assets.DemolisherAirControlFromVelocityAddBuff) && (self.characterMotor ? !self.characterMotor.isGrounded : true) && self.characterBody.inventory && self.characterBody.inventory.GetItemCountEffective(Assets.BootsPassive) > 0) return;
+            if (self.characterBody.GetBuffCount(Assets.DemolisherAirControlFromVelocityAddBuff) + self.characterBody.GetClientBuffCount(Assets.DemolisherAirControlFromVelocityAddBuff) > 0 && (self.characterMotor ? !self.characterMotor.isGrounded : true) && self.characterBody.inventory && self.characterBody.inventory.GetItemCountEffective(Assets.BootsPassive) > 0) return;
             orig(self, ignoreRequirements);
         }
 
