@@ -518,7 +518,6 @@ namespace Demolisher
     {
         public CharacterController characterController;
         public DemolisherSwordPillarBodyMover demolisherSwordPillarBodyMover;
-        public float returnTime = 0.5f;
         public float lifetime = 1f;
         public float gravity = 3f;
         public AnimationCurve velocityOverLifetime = AnimationCurve.Constant(0f, 1f, 100f);
@@ -531,6 +530,7 @@ namespace Demolisher
         private Stack<Vector3> moveVectors = [];
         private int count;
         private bool reversed;
+        private float attackSpeed;
         public override void Awake()
         {
             base.Awake();
@@ -551,7 +551,20 @@ namespace Demolisher
                 {
                     fireTallSword = genericSkill == null || genericSkill.stateMachine == null || genericSkill.stateMachine.state == null || !(genericSkill.stateMachine.state is FireTallSword) ? null : genericSkill.stateMachine.state as FireTallSword;
                     if (fireTallSword == null || fireTallSword.stateTaken) continue;
+                    attackSpeed = fireTallSword.attackSpeedStat;
+                    if (fireTallSword.currentMeleeWeaponDef) attackSpeed *= fireTallSword.currentMeleeWeaponDef.attackSpeedMultiplier;
                     meleeWeapon = fireTallSword.currentMeleeWeaponDef;
+                    if (demolisherSwordPillarBodyMover && demolisherSwordPillarBodyMover.vehicleSeat && fireTallSword.isAuthority && fireTallSword.characterBody && fireTallSword.inputBank && fireTallSword.inputBank.skill1.down)
+                    {
+                        if (NetworkServer.active)
+                        {
+                            demolisherSwordPillarBodyMover.vehicleSeat.SetPassenger(fireTallSword.gameObject);
+                        }
+                        else
+                        {
+                            new VehicleSeatSetPassengerAuthority(demolisherSwordPillarBodyMover.vehicleSeat.netIdentity, fireTallSword.characterBody.networkIdentity).Send(R2API.Networking.NetworkDestination.Server);
+                        }
+                    }
                     if (meleeWeapon)
                     {
                         fireTallSword.stateTaken = true;
@@ -597,14 +610,14 @@ namespace Demolisher
             {
                 transform.forward = Vector3.RotateTowards(transform.forward, Direction(), steering / 57.3f, 0f);
                 Vector3 direction;
-                if (!reversed && timer >= returnTime) Reverse();
+                if (!reversed && timer >= lifetime / attackSpeed / 2f) Reverse();
                 if (reversed)
                 {
                     direction = moveVectors.Count > 0 ? moveVectors.Pop() : transform.position;
                 }
                 else
                 {
-                    float velocity = velocityOverLifetime.Evaluate(timer / lifetime);
+                    float velocity = velocityOverLifetime.Evaluate(timer / attackSpeed) * attackSpeed;
                     direction = ((transform.forward * velocity) + (Physics.gravity * gravity)) * Time.fixedDeltaTime;
                 }
                 if (reversed)
@@ -616,7 +629,7 @@ namespace Demolisher
                     characterController.Move(direction);
                     AddPath();
                 }
-                if (timer >= lifetime) Destroy(gameObject);
+                if (timer >= lifetime / attackSpeed) Destroy(gameObject);
             }
         }
         public void AddPath()
@@ -654,6 +667,7 @@ namespace Demolisher
     }
     public class DemolisherSwordPillarBodyMover : NetworkBehaviour
     {
+        public VehicleSeat vehicleSeat;
         public Stack<HitBody> hitBodies = [];
         public Stack<CharacterBody> hitCharacterBodies = [];
         [Server] public void AddHitBody(CharacterBody characterBody, Vector3 vector3)
@@ -678,15 +692,17 @@ namespace Demolisher
         }
         public void FinalAddHitBody(CharacterBody characterBody, Vector3 vector3)
         {
-            HitBody hitBody = new HitBody { characterBody = characterBody, relativePosition = vector3 };
+            HitBody hitBody = new HitBody { characterBody = characterBody, relativePosition = vector3, entityStateMachines = characterBody.gameObject.GetComponents<EntityStateMachine>() };
             hitBodies.Push(hitBody);
             hitCharacterBodies.Push(characterBody);
+            if (hitBody.entityStateMachines != null) foreach (EntityStateMachine entityStateMachine in hitBody.entityStateMachines) entityStateMachine?.SetNextState(new EntityStates.Idle());
             HandleHitBody(hitBody);
         }
         public struct HitBody
         {
             public Vector3 relativePosition;
             public CharacterBody characterBody;
+            public EntityStateMachine[] entityStateMachines;
         }
         public void HandleHitBody(HitBody hitBody)
         {
@@ -708,9 +724,31 @@ namespace Demolisher
                 characterBody.transform.position = vector3;
             }
         }
+        public void OnEnable()
+        {
+            if (vehicleSeat) vehicleSeat.onPassengerEnter += VehicleSeat_onPassengerEnter;
+        }
+        public void OnDestroy()
+        {
+            foreach (HitBody hitBody in hitBodies) if (hitBody.characterBody && hitBody.characterBody.healthComponent && hitBody.characterBody.healthComponent.alive && hitBody.entityStateMachines != null) foreach (EntityStateMachine entityStateMachine in hitBody.entityStateMachines) entityStateMachine?.SetNextStateToMain();
+        }
+        private void VehicleSeat_onPassengerEnter(GameObject obj)
+        {
+            if (!obj) return;
+            CharacterBody characterBody = obj.GetComponent<CharacterBody>();
+            if (!characterBody) return;
+            Vector3 height = characterBody.corePosition - characterBody.footPosition;
+            if (vehicleSeat.exitPosition) vehicleSeat.exitPosition.localPosition = height;
+            if (vehicleSeat.seatPosition) vehicleSeat.seatPosition.localPosition = height;
+        }
+
         public void FixedUpdate()
         {
             foreach (HitBody hitBody in hitBodies) HandleHitBody(hitBody);
+        }
+        public void OnDisable()
+        {
+            if (vehicleSeat) vehicleSeat.onPassengerEnter -= VehicleSeat_onPassengerEnter;
         }
     }
     public class DemolisherSwordPillarGhost : MonoBehaviour
@@ -925,11 +963,12 @@ namespace Demolisher
         [HideInInspector] public List<CharacterBody> hitBodies = new List<CharacterBody>();
         [HideInInspector] public bool hit;
         [HideInInspector] public CharacterBody ownerBody;
+        private Vector3 previousVelocity;
         public Vector3 forceVector
         {
             get
             {
-                Vector3 vector3 = rigidbody.velocity;
+                Vector3 vector3 = previousVelocity == Vector3.zeroVector ? rigidbody.velocity : previousVelocity;
                 vector3.y = 0f;
                 return vector3.normalized;
             }
@@ -940,7 +979,11 @@ namespace Demolisher
             if (projectileController == null) projectileController = GetComponent<ProjectileController>();
             if (projectileDamage == null) projectileDamage = GetComponent<ProjectileDamage>();
         }
-
+        public void FixedUpdate()
+        {
+            if (rigidbody == null) return;
+            previousVelocity = rigidbody.velocity;
+        }
         public void OnProjectileImpact(ProjectileImpactInfo impactInfo)
         {
             if (!NetworkServer.active) return;
@@ -951,7 +994,7 @@ namespace Demolisher
             if(characterBody == null) return;
             if(!hitBodies.Contains(characterBody)) hitBodies.Add(characterBody);
             characterBody.AddTimedBuff(Assets.BombHit, 1f);
-            if (projectileDamage)
+            if (projectileDamage && characterBody.healthComponent)
             {
                 DamageInfo damageInfo = new DamageInfo
                 {
@@ -966,7 +1009,7 @@ namespace Demolisher
                     position = impactInfo.estimatedPointOfImpact,
                     procCoefficient = procCoefficient
                 };
-                characterBody.healthComponent?.TakeDamageProcess(damageInfo);
+                characterBody.healthComponent.TakeDamageProcess(damageInfo);
             }
             PhysForceInfo physForceInfo = new PhysForceInfo
             {
@@ -979,8 +1022,7 @@ namespace Demolisher
             CharacterMotor characterMotor = characterBody.characterMotor;
             if (characterMotor)
             {
-                
-                characterMotor?.ApplyForceImpulse(physForceInfo);
+                characterMotor.ApplyForceImpulse(physForceInfo);
             }
             else if (characterBody.rigidbody)
             {
@@ -2274,6 +2316,7 @@ namespace Demolisher
         {
             oneTimeModification?.Invoke(source, ref attack);
         }
+
         public virtual void ModifyAttack(object source, ref object attack)
         {
             attackModification?.Invoke(source, ref attack);
@@ -2283,6 +2326,7 @@ namespace Demolisher
     public class DemolisherBulletAttackWeaponDef : DemolisherWeaponDef
     {
         public float damageMultiplier = 1f;
+        public float attackSpeedMultiplier = 1f;
         public float procMultiplier = 1f;
         public float forceMultiplier = 1f;
         public float radiusMultiplier = 1f;
@@ -2313,7 +2357,8 @@ namespace Demolisher
         public override void ModifyAttack(object source, ref object attack)
         {
             base.ModifyAttack(source, ref attack);
-            BulletAttack bulletAttack = (BulletAttack)attack;
+            BulletAttack bulletAttack = attack as BulletAttack;
+            if (bulletAttack == null) return;
             bulletAttack.damage *= damageMultiplier;
             bulletAttack.procCoefficient *= procMultiplier;
             bulletAttack.force *= forceMultiplier;
@@ -2326,8 +2371,9 @@ namespace Demolisher
     {
         public GameObject projectile = Assets.GrenadeProjectile;
         public float damageMultiplier = 1f;
+        public float attackSpeedMultiplier = 1f;
         public float forceMultiplier = 1f;
-        public float speedMultiplier = 1f;
+        public float speed = -1f;
         public string fireSound;
         public DamageType damageType = DamageType.Generic;
         public DamageTypeExtended damageTypeExtended = DamageTypeExtended.Generic;
@@ -2335,20 +2381,26 @@ namespace Demolisher
         public override void OneTimeModification(object source, ref object attack)
         {
             base.OneTimeModification(source, ref attack);
-            FireProjectileInfo fireProjectileInfo = (FireProjectileInfo)attack;
-            fireProjectileInfo.projectilePrefab = projectile;
-            DamageTypeCombo damageTypeCombo = fireProjectileInfo.damageTypeOverride.Value;
-            damageTypeCombo.damageType = damageType;
-            damageTypeCombo.damageTypeExtended = damageTypeExtended;
-            if (moddedDamageTypes != null) foreach (DamageAPI.ModdedDamageType moddedDamageType in moddedDamageTypes) damageTypeCombo.AddModdedDamageType(moddedDamageType);
+            if (attack is FireProjectileInfo fireProjectileInfo)
+            {
+                fireProjectileInfo.projectilePrefab = projectile;
+                DamageTypeCombo damageTypeCombo = fireProjectileInfo.damageTypeOverride.Value;
+                damageTypeCombo.damageType = damageType;
+                damageTypeCombo.damageTypeExtended = damageTypeExtended;
+                if (moddedDamageTypes != null) foreach (DamageAPI.ModdedDamageType moddedDamageType in moddedDamageTypes) damageTypeCombo.AddModdedDamageType(moddedDamageType);
+                attack = fireProjectileInfo;
+            }
         }
         public override void ModifyAttack(object source, ref object attack)
         {
             base.ModifyAttack(source, ref attack);
-            FireProjectileInfo fireProjectileInfo = (FireProjectileInfo)attack;
-            fireProjectileInfo.damage *= damageMultiplier;
-            fireProjectileInfo.speedOverride *= speedMultiplier;
-            fireProjectileInfo.force *= forceMultiplier;
+            if (attack is FireProjectileInfo fireProjectileInfo)
+            {
+                fireProjectileInfo.damage *= damageMultiplier;
+                fireProjectileInfo.speedOverride = speed;
+                fireProjectileInfo.force *= forceMultiplier;
+                attack = fireProjectileInfo;
+            }
         }
     }
     [CreateAssetMenu(menuName = "Demolisher/DemolisherWeaponSkillDef")]

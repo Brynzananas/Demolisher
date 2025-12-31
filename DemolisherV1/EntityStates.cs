@@ -53,12 +53,24 @@ namespace Demolisher
         public GenericSkill utilitySkill => skillLocator && skillLocator.utility ? skillLocator.utility : null;
         public GenericSkill secondarySkill => skillLocator && skillLocator.secondary ? skillLocator.secondary : null;
         public GenericSkill specialSkill => skillLocator && skillLocator.special ? skillLocator.special : null;
-        public DemolisherComponent demolisherComponent;
+        private DemolisherComponent _demolisherComponent;
+        private bool demolisherComponentMissing;
+        public DemolisherComponent demolisherComponent
+        {
+            get
+            {
+                if (demolisherComponentMissing) return null;
+                if (!_demolisherComponent) _demolisherComponent = GetComponent<DemolisherComponent>();
+                if (!_demolisherComponent) demolisherComponentMissing = true;
+                return _demolisherComponent;
+            }
+        }
         public bool canSwapBySprint => characterBody.HasModdedBodyFlag(BrynzaAPI.Assets.SprintAllTime);
         public override void OnEnter()
         {
             base.OnEnter();
-            demolisherComponent = gameObject.GetComponent<DemolisherComponent>();
+            DemolisherEntityStateMachine demolisherEntityStateMachine = outer as DemolisherEntityStateMachine;
+            _demolisherComponent = demolisherEntityStateMachine ? demolisherEntityStateMachine.commonDemolisherComponents.demolisherComponent : null;
         }
         public override void FixedUpdate()
         {
@@ -92,10 +104,7 @@ namespace Demolisher
                         swapping = false;
                         if (!swapped) fireUtilitySkill = true;
                         StopSwapping();
-                        if (utilitySkill)
-                        {
-                            if (CanExecuteSkill(utilitySkill) && utilitySkill.ExecuteIfReady()) utilityButtonState.hasPressBeenClaimed = true;
-                        }
+                        if (utilitySkill) if (CanExecuteSkill(utilitySkill) && utilitySkill.ExecuteIfReady()) utilityButtonState.hasPressBeenClaimed = true;
                     }
                 }
             }
@@ -324,6 +333,10 @@ namespace Demolisher
         {
             object attack = fireProjectileInfo;
             if (currentRangedWeaponDef) currentRangedWeaponDef.ModifyAttack(this, ref attack);
+            if (attack is FireProjectileInfo fireProjectileInfo2)
+            {
+                fireProjectileInfo = fireProjectileInfo2;
+            }
         }
         public override InterruptPriority GetMinimumInterruptPriority()
         {
@@ -412,6 +425,7 @@ namespace Demolisher
         public virtual void SetValues()
         {
             duration = baseDuration / characterBody.attackSpeed;
+            if (currentRangedWeaponDef) duration /= currentRangedWeaponDef.attackSpeedMultiplier;
         }
         public override void OnEnter()
         {
@@ -497,7 +511,7 @@ namespace Demolisher
             taken = reader.ReadBoolean();
         }
     }
-    public class MediumMeleeAttackWindUp : BaseSkillState, SteppedSkillDef.IStepSetter
+    public class MediumMeleeAttackWindUp : DemolisherBaseState, SteppedSkillDef.IStepSetter
     {
         public static float baseDuration => MediumMeleeAttackConfig.baseDuration.Value;
         public static float swingUpCrossfade = 0.2f;
@@ -508,6 +522,7 @@ namespace Demolisher
         {
             base.OnEnter();
             duration = baseDuration / attackSpeedStat;
+            if (currentMeleeWeaponDef) duration /= currentMeleeWeaponDef.attackSpeedMultiplier;
             PlayCrossfade("Gesture, Override", noStep ? "SwingUp1" : "SwingUp2", "Slash.playbackRate", duration, swingUpCrossfade / attackSpeedStat);
         }
         public override void FixedUpdate()
@@ -563,6 +578,7 @@ namespace Demolisher
         {
             base.OnEnter();
             attackDuration = baseAttackDuration / attackSpeedStat;
+            if (currentMeleeWeaponDef) attackDuration /= currentMeleeWeaponDef.attackSpeedMultiplier;
             CreateBulletAttack();
             UpdateBulletAttack(characterBody.damage * damageCoefficient, procCoefficient, effectCoefficient, force, RollCrit(), radius, maxDistance, true);
             Transform transform = characterBody.aimOriginTransform ?? characterBody.transform;
@@ -699,7 +715,7 @@ namespace Demolisher
         }
         public virtual void SetValues()
         {
-            float rampUp = 1f; //Mathf.Min((fixedAge * attackSpeedRampUpRate) + 1f, maxAttackSpeedRampUp);
+            float rampUp = currentMeleeWeaponDef ? currentMeleeWeaponDef.attackSpeedMultiplier : 1f; //Mathf.Min((fixedAge * attackSpeedRampUpRate) + 1f, maxAttackSpeedRampUp);
             attackDuration = baseAttackDuration / characterBody.attackSpeed / rampUp;
             duration = baseDuration / characterBody.attackSpeed / rampUp;
         }
@@ -856,8 +872,8 @@ namespace Demolisher
         public static float baseVelocityLerpTime = 0.5f;
         public static float shieldBashVelocityForceMultiplier = 1f;
         public static float shieldBashGravityForceMultiplier = 1f;
-        public static float extraGroundingDistance = 1f;
-        public static float extraStepOffset = 1f;
+        public static float extraGroundingDistance = 4f;
+        public static float extraStepOffset = 4f;
         public static Vector3 effectScale = new Vector3(1f, 1f, 3f);
         public static Action<float> onChargeEndGiveSqrTraveledDistance;
         public Animator modelAnimator;
@@ -874,7 +890,6 @@ namespace Demolisher
         private EffectComponent effectInstance;
         private Vector3 previousVelocity;
         private float previousVelocityMagnitude;
-        private float previousVelocityMagnitudeRoot;
         private float speed;
         public override DamageSource damageSource => GetDamageSource();
 
@@ -910,7 +925,16 @@ namespace Demolisher
             ShieldBash();
             previousPosition = characterBody.footPosition;
             if (!isAuthority) return;
-            if (inputBank.skill1.justPressed || fixedAge >= duration) outer.SetNextStateToMain();
+            if (inputBank)
+            {
+                if (inputBank.skill1.justPressed || fixedAge >= duration) outer.SetNextStateToMain();
+                if (skillLocator)
+                {
+                    GenericSkill secondarySkill = skillLocator.secondary;
+                    if (secondarySkill && inputBank.skill2.justPressed && secondarySkill.ExecuteIfReady()) inputBank.skill2.hasPressBeenClaimed = true;
+                }
+                
+            }
         }
         public virtual void ShieldBash()
         {
@@ -933,6 +957,7 @@ namespace Demolisher
             if (characterMotor)
             {
                 previousVelocity = characterMotor.velocity;
+                if (!characterMotor.isFlying) previousVelocity.y = 0f;
                 //characterMotor.walkSpeedPenaltyCoefficient *= walkSpeedMultiplier;
                 if (characterMotor.Motor) characterMotor.Motor.GroundDetectionExtraDistance += extraGroundingDistance;
                 characterMotor.stepOffset += extraStepOffset;
@@ -946,7 +971,6 @@ namespace Demolisher
                 previousVelocity = rigidbody.velocity;
             }
             previousVelocityMagnitude = previousVelocity.magnitude;
-            previousVelocityMagnitudeRoot = Mathf.Sqrt(previousVelocityMagnitudeRoot);
             if (demolisherModel)
             {
                 demolisherModel.devilCount++;
@@ -1047,15 +1071,15 @@ namespace Demolisher
         public override void OnEnter()
         {
             base.OnEnter();
+            if (isAuthority) outer.SetNextStateToMain();
+            Util.PlaySound("Play_stickybomblauncher_det", gameObject);
             ProjectileDetonator projectileDetonator = gameObject.GetOrAddComponent<ProjectileDetonator>();
             if (NetworkServer.active)
                 if (projectileDetonator) projectileDetonator.DetonateAll();
-            Util.PlaySound("Play_stickybomblauncher_det", gameObject);
-            outer.SetNextStateToMain();
         }
         public override InterruptPriority GetMinimumInterruptPriority()
         {
-            return InterruptPriority.PrioritySkill;
+            return InterruptPriority.Skill;
         }
     }
     public class WhirlwindMelee : BaseMeleeAttack
@@ -1100,21 +1124,13 @@ namespace Demolisher
                     outer.SetNextStateToMain();
                     return;
                 }
-                Util.PlaySound("Play_HorseMan_SpearWoosh", gameObject);
-                //Util.PlaySound("Play_DemoSwordSwing", gameObject);
-                EffectData effectData = new EffectData
-                {
-                    scale = radius,
-                    rootObject = characterBody.mainHurtBox.gameObject,
-                    genericFloat = interval
-                };
-                EffectManager.SpawnEffect(Assets.WhirlwindEffect.index, effectData, false);
+                SpawnEffect();
                 if (activatorSkillSlot) activatorSkillSlot.stock--;
             }
             Ray ray = GetAimRay();
             Vector3 vector3 = inputBank ? inputBank.moveVector : ray.direction;
             vector3.y = ray.direction.y;
-            direction = Vector3.MoveTowards(direction, vector3, degreesPerSecond * Time.fixedDeltaTime * characterBody.attackSpeed / controlReduction);
+            direction = Vector3.MoveTowards(direction, vector3, (degreesPerSecond * Time.fixedDeltaTime * characterBody.attackSpeed / controlReduction) + characterBody.moveSpeed * Time.fixedDeltaTime);
             //direction = Vector3.RotateTowards(direction, vector3, degreesPerSecond / 57f * Time.fixedDeltaTime * characterBody.attackSpeed, 0f);
             rotation = Quaternion.AngleAxis(rotationsPerSecond * 360f * Time.fixedDeltaTime, Vector3.up) * rotation;
             if (characterDirection)
@@ -1155,6 +1171,7 @@ namespace Demolisher
         {
             degreesPerSecond = baseDegreesPerSecond;
             rotationsPerSecond = baseRotationsPerSecond * characterBody.attackSpeed;
+            if (currentMeleeWeaponDef) rotationsPerSecond *= currentMeleeWeaponDef.attackSpeedMultiplier;
             interval = 1f / rotationsPerSecond;
             duration = maxDuration;
         }
@@ -1166,15 +1183,8 @@ namespace Demolisher
             animator = GetModelAnimator();
             if (animator) animator.SetBool("isSpinning", true);
             SetValues();
-            EffectData effectData = new EffectData
-            {
-                scale = radius,
-                rootObject = characterBody.mainHurtBox.gameObject,
-                genericFloat = interval
-            };
             if (demolisherModel) demolisherModel.devilCount++;
-            EffectManager.SpawnEffect(Assets.WhirlwindEffect.index, effectData, false);
-            Util.PlaySound("Play_HorseMan_SpearWoosh", gameObject);
+            SpawnEffect();
             //Util.PlaySound("Play_DemoSwordSwing", gameObject);
             CreateBulletAttack();
             UpdateBulletAttack(damageCoefficient * characterBody.damage, procCoefficient, effectCoefficient, force, RollCrit(), radius, maxDistance, true);
@@ -1187,6 +1197,17 @@ namespace Demolisher
             {
                 magnitude = rigidbody.velocity.magnitude;
             }
+        }
+        public void SpawnEffect()
+        {
+            EffectData effectData = new EffectData
+            {
+                scale = radius,
+                rootObject = gameObject,
+                genericFloat = interval
+            };
+            EffectManager.SpawnEffect(Assets.WhirlwindEffect.index, effectData, false);
+            Util.PlaySound("Play_HorseMan_SpearWoosh", gameObject);
         }
         public override void OnExit()
         {
@@ -2154,8 +2175,9 @@ namespace Demolisher
         public static float baseEndWindow => ChainDashConfig.baseEndWindow.Value;
         public static float speedMultiplier => ChainDashConfig.speedMultiplier.Value;
         public static float moveVectorSmoothTime => ChainDashConfig.moveVectorSmoothTime.Value;
-        public static float extraGroundingDistance = 1f;
-        public static float extraStepOffset = 1f;
+        public static float movementSmoothLerpCoof = 1.5f;
+        public static float extraGroundingDistance = 8f;
+        public static float extraStepOffset = 8f;
         public static float baseEffectDuration = 0.1f;
         public static float effectScale = 1f;
         public float effectDuration;
@@ -2163,15 +2185,15 @@ namespace Demolisher
         public float endWindow;
         public bool effectApplied;
         public float stopwatch;
-        public bool keyDown;
         public bool wasKeyDown;
         public Vector3 moveVector;
         public Vector3 moveVectorVelocity;
         public Animator modelAnimator;
         public BodyAnimatorSmoothingParameters.SmoothingParameters smoothingParameters;
         public bool success;
+        private bool wasGrounded;
+        private Vector3 previousVelocity;
 
-        private bool keyPressed => keyDown && !wasKeyDown;
         public override void OnEnter()
         {
             base.OnEnter();
@@ -2179,13 +2201,20 @@ namespace Demolisher
             //GetBodyAnimatorSmoothingParameters(out smoothingParameters);
             if (characterMotor)
             {
+                previousVelocity = characterMotor.velocity;
+                if (!characterMotor.isFlying) previousVelocity.y = 0f;
                 characterMotor.stepOffset += extraStepOffset;
                 //characterMotor.velocity.y = Mathf.Max(0f, characterMotor.velocity.y);
                 if (characterMotor.Motor) characterMotor.Motor.GroundDetectionExtraDistance += extraGroundingDistance;
             }
+            else if (rigidbody)
+            {
+                previousVelocity = rigidbody.velocity;
+            }
             if (demolisherModel) demolisherModel.trailCount++;
             SetValues();
             wasKeyDown = true;
+            wasGrounded = characterMotor.isGrounded;
         }
         public override void FixedUpdate()
         {
@@ -2205,22 +2234,24 @@ namespace Demolisher
             if (skillLocator && inputBank)
             {
                 HandleSkill(skillLocator.primary, ref inputBank.skill1);
+                HandleSkill(skillLocator.secondary, ref inputBank.skill2);
             }
             moveVector = Vector3.SmoothDamp(moveVector, Vector3.zero, ref moveVectorVelocity, moveVectorSmoothTime, float.MaxValue, Time.fixedDeltaTime);
             if (characterMotor)
             {
+                if (!characterMotor.isGrounded && wasGrounded) characterMotor.velocity.y = 0f;
                 Vector3 vector3 = moveVector;
-                vector3.y = characterMotor.velocity.y;
-                characterMotor.velocity = vector3;
+                if (!characterMotor.isFlying) vector3.y = characterMotor.velocity.y;
+                characterMotor.velocity = Vector3.Lerp(previousVelocity, vector3, stopwatch / (startWindow / movementSmoothLerpCoof));
+                wasGrounded = characterMotor.isGrounded;
             }
             else if (rigidbody)
             {
                 Vector3 vector3 = moveVector;
-                vector3.y = rigidbody.velocity.y;
-                rigidbody.velocity = vector3;
+                //vector3.y = rigidbody.velocity.y;
+                rigidbody.velocity = Vector3.Lerp(previousVelocity, vector3, stopwatch / (startWindow / movementSmoothLerpCoof));
             }
-            keyDown = IsKeyDownAuthority();
-            if (keyPressed)
+            if (IsKeyJustPressedAuthority())
             {
                 if (stopwatch >= startWindow && stopwatch <= endWindow)
                 {
@@ -2233,7 +2264,6 @@ namespace Demolisher
                 }
             }
             if (stopwatch > endWindow) outer.SetNextStateToMain();
-            wasKeyDown = keyDown;
         }
         public override void OnExit()
         {

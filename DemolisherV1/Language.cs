@@ -13,27 +13,28 @@ namespace Demolisher
             InitAnchievements();
             InitSharpness();
             InitSoftness();
-            InitChaos();
+            //InitChaos();
             InitMediumMelee();
             InitShieldBash();
             InitChainDash();
             InitBoots();
             InitGrenadeLauncher();
             InitBombLauncher();
-            InitHookLauncher();
+            //InitHookLauncher();
             InitStickyLauncher();
             InitDemolisherLauncher();
             InitSwordPillar();
-            InitParry();
+            //InitParry();
             InitDetonate();
             InitWhirlwind();
-            InitSlicing();
+            //InitSlicing();
             InitCollapse();
             InitLaser();
             InitFly();
         }
         public static void InitCharacter()
         {
+            if (!inited) return;
             AddLanguageToken(Assets.DemolisherCharacterBody.baseNameToken, "Demolisher");
             AddLanguageToken(Assets.DemolisherCharacterBody.baseNameToken, "Разрывник", "ru");
             AddLanguageToken(Assets.DemolisherCharacterBody.subtitleNameToken, "Escape of Hell");
@@ -42,10 +43,10 @@ namespace Demolisher
             AddLanguageToken(Assets.Demolisher.displayNameToken, "Разрывник", "ru");
             AddLanguageToken(Assets.Demolisher.descriptionToken, "Demolisher is a powerfull character that can switch between melee and ranged styles at any moment by pressing sprint button.\r\n\r\nPassive allows Demolisher for harmless landing and quick descent. His explosives have knockback that can be used as a quick position relocation.\r\n\r\nSword attacks has a small radius of attack, so you must aim at the target you want to hit, however they compensates it with their high burst damage and attack speed.\r\n\r\nIn ranged style swords are replaced with sticky trap launcher. On impact they stick to the surface and wait for detonation signal.\r\n\r\nSecondaries give quick high damage bursts for both styles.\r\n\r\nCharge can be used to push enemies away and quickly escape from any situation.\r\n\r\nIn ranged style charge is replaced with trap detonation.\r\n\r\nSpecials for both styles offer a massive damage output, however they have long recharge cooldown.");
             AddLanguageToken(Assets.Demolisher.descriptionToken, "Разрывник довольно сильный персонаж который может переключаться между ближним и дальним стилем боя в любой момент нажимаяя на кнопку бега.\r\n\r\nПассивный скилл позволяет Разрывнику быстро спускаться на землю и не получать урон от падения. Его взрывчатка хорошо отталкивает пользователя и его союзников, позволяя им быстро перемещаться.\r\n\r\nАтаки мечом имеет малый радиус атаки, так что метко цельтесь на врагов которые вы хотите повредить, однако они компенсируют своим высоким уроном и скоростью атаки.\r\n\r\nВ дальнем стиле мечи меняются на гранатомет липких ловушек. При столкновении они прилипают к поверхности и ждут сигнал детонации.\r\n\r\nВторостепенные умения дают быстрый способ нанести высокий урон для обоих стилей.\r\n\r\nРывок может быть использован чтобы толкать врагов и выбираться из трудной ситуации.\r\n\r\nВ дальнем стилее рывок заменяется на детонацию ловушек.\r\n\r\nОсобые умения для обоих стилей предлагают массивный урона, однако занимают долгое время для перезарядки.", "ru");
-            AddLanguageToken(Assets.Demolisher.mainEndingEscapeFailureFlavorToken, "...and so he left, escaping eternal torment");
-            AddLanguageToken(Assets.Demolisher.mainEndingEscapeFailureFlavorToken, "...и он ушел, ушел от бесконечных мучений", "ru");
-            AddLanguageToken(Assets.Demolisher.outroFlavorToken, "...and so he vanished, leaving nothing behind");
-            AddLanguageToken(Assets.Demolisher.outroFlavorToken, "...и он исчез, оставив ничего позади", "ru");
+            AddLanguageToken(Assets.Demolisher.outroFlavorToken, "...and so he left, escaping eternal torment");
+            AddLanguageToken(Assets.Demolisher.outroFlavorToken, "...и он ушел, ушел от бесконечных мучений", "ru");
+            AddLanguageToken(Assets.Demolisher.mainEndingEscapeFailureFlavorToken, "...and so he vanished, leaving nothing behind");
+            AddLanguageToken(Assets.Demolisher.mainEndingEscapeFailureFlavorToken, "...и он исчез, оставив ничего позади", "ru");
             AddLanguageToken("DEMOLISHER_SKILL_WEAPON", "Weapon");
             AddLanguageToken("DEMOLISHER_SKILL_WEAPON", "Оружие", "ru");
             AddLanguageToken("DEMOLISHER_SKIN_DEMON", "Hell Slave");
@@ -61,6 +62,7 @@ namespace Demolisher
         }
         public static void InitAnchievements()
         {
+            if (!inited) return;
             AddLanguageToken("ACHIEVEMENT_DEMOLISHERSPEEDRUN_NAME", "Demolisher: From A to D skipping B and C");
             AddLanguageToken("ACHIEVEMENT_DEMOLISHERSPEEDRUN_NAME", "Разрывник: От А до Г пропуская Б и В", "ru");
             AddLanguageToken("ACHIEVEMENT_DEMOLISHERSPEEDRUN_DESCRIPTION", $"As Demolisher, touch teleporter under {Hooks.stagetRequieredTime} seconds after stage enter.");
@@ -92,26 +94,30 @@ namespace Demolisher
         }
         public static void InitSharpness()
         {
+            if (!inited) return;
             AddLanguageToken(Assets.Sharpness.skillNameToken, SharpnessName);
             AddLanguageToken(Assets.Sharpness.skillNameToken, SharpnessNameRu, "ru");
-            AddLanguageToken(Assets.Sharpness.skillDescriptionToken, $"First melee hit deals {damagePrefix}{Hooks.SharpnessDamageMultiplier * 100f}% more damage{endPrefix}. Each melee hit increases melee attack crit chance by {damagePrefix}{Hooks.SharpnessCritAddition}%{endPrefix} that resets on crit.");
-            AddLanguageToken(Assets.Sharpness.skillDescriptionToken, $"Первый удар мечом наносит {damagePrefix}{Hooks.SharpnessDamageMultiplier * 100f}% больше урона{endPrefix}. Каждый удар мечом повышает шанс критического урона меча на {damagePrefix}{Hooks.SharpnessCritAddition}%{endPrefix} который сбрасывается при критическом ударе.", "ru");
+            AddLanguageToken(Assets.Sharpness.skillDescriptionToken, $"Melee attacks deal {damagePrefix}{(Assets.SharpnessWeapon.damageMultiplier - 1f) * 100}% more damage{endPrefix}. First melee hit deals {damagePrefix}{Hooks.SharpnessDamageMultiplier * 100f}% more damage{endPrefix}. Each melee hit increases melee attack crit chance by {damagePrefix}{Hooks.SharpnessCritAddition}%{endPrefix} that resets on crit.");
+            AddLanguageToken(Assets.Sharpness.skillDescriptionToken, $"Атаки мечом наносят на {damagePrefix}{(Assets.SharpnessWeapon.damageMultiplier - 1f) * 100}% больше урона{endPrefix}. Первый удар мечом наносит {damagePrefix}{Hooks.SharpnessDamageMultiplier * 100f}% больше урона{endPrefix}. Каждый удар мечом повышает шанс критического урона меча на {damagePrefix}{Hooks.SharpnessCritAddition}%{endPrefix} который сбрасывается при критическом ударе.", "ru");
         }
         public static void InitSoftness()
         {
+            if (!inited) return;
             AddLanguageToken(Assets.Softness.skillNameToken, SoftnessName);
             AddLanguageToken(Assets.Softness.skillNameToken, SoftnessNameRu, "ru");
-            AddLanguageToken(Assets.Softness.skillDescriptionToken, $"Each melee hit heals you for {healingPrefix}{Hooks.SoftnessHealOnHitPercentage}% max health{endPrefix}.\nEach melee kill heals you for {healingPrefix}{Hooks.SoftnessHealOnKillPercentage}% max health{endPrefix}.");
-            AddLanguageToken(Assets.Softness.skillDescriptionToken, $"Каждый удар мечом исцеляет на {healingPrefix}{Hooks.SoftnessHealOnHitPercentage}% максимального здоровья{endPrefix}.\nКаждое убийство мечом исцеляет на {healingPrefix}{Hooks.SoftnessHealOnKillPercentage}% максимального здоровья{endPrefix}.", "ru");
+            AddLanguageToken(Assets.Softness.skillDescriptionToken, $"Melee attacks attack {damagePrefix}{(Assets.SoftnessWeapon.attackSpeedMultiplier - 1f) * 100}% faster{endPrefix}. Each melee hit heals you for {healingPrefix}{Hooks.SoftnessHealOnHitPercentage}% max health{endPrefix}.\nEach melee kill heals you for {healingPrefix}{Hooks.SoftnessHealOnKillPercentage}% max health{endPrefix}.");
+            AddLanguageToken(Assets.Softness.skillDescriptionToken, $"Атаки мечом становятся на {damagePrefix}{(Assets.SoftnessWeapon.attackSpeedMultiplier - 1f) * 100}% быстрее{endPrefix}.Каждый удар мечом исцеляет на {healingPrefix}{Hooks.SoftnessHealOnHitPercentage}% максимального здоровья{endPrefix}.\nКаждое убийство мечом исцеляет на {healingPrefix}{Hooks.SoftnessHealOnKillPercentage}% максимального здоровья{endPrefix}.", "ru");
         }
         public static void InitChaos()
         {
+            if (!inited) return;
             AddLanguageToken(Assets.Chaos.skillNameToken, ChaosName);
             AddLanguageToken(Assets.Chaos.skillNameToken, ChaosNameRu, "ru");
             AddLanguageToken(Assets.Chaos.skillDescriptionToken, $"On melee hit create an explosion that deals {damagePrefix}{Hooks.ChaosDamageCoefficient * 100f}% base damage{endPrefix}. Reharges after {Hooks.ChaosCooldown} seconds.");
         }
         public static void InitMediumMelee()
         {
+            if (!inited) return;
             AddLanguageToken(Assets.MediumMelee.skillNameToken, MediumMeleeAttackName);
             AddLanguageToken(Assets.MediumMelee.skillNameToken, MediumMeleeAttackNameRu, "ru");
             AddLanguageToken(Assets.MediumMelee.skillDescriptionToken, $"{damagePrefix}Melee{endPrefix}. Swing in the direction you are looking for {damagePrefix}{MediumMeleeAttack.damageCoefficient * 100f}% base damage{endPrefix}");
@@ -119,6 +125,7 @@ namespace Demolisher
         }
         public static void InitShieldBash()
         {
+            if (!inited) return;
             AddLanguageToken(Assets.ShieldBash.skillNameToken, ShieldChargeName);
             AddLanguageToken(Assets.ShieldBash.skillNameToken, ShieldChargeNameRu, "ru");
             AddLanguageToken(Assets.ShieldBash.skillDescriptionToken, $"Charge forward for {utilityPrefix}{ShieldCharge.baseDuration} seconds{endPrefix}, bashing though enemies dealing {damagePrefix}{ShieldCharge.shieldBashDamageCoefficient * 100f}% base damage{endPrefix}.");
@@ -126,6 +133,7 @@ namespace Demolisher
         }
         public static void InitChainDash()
         {
+            if (!inited) return;
             AddLanguageToken(Assets.ChainDash.skillNameToken, ChainDashName);
             AddLanguageToken(Assets.ChainDash.skillNameToken, ChainDashNameRu, "ru");
             AddLanguageToken(Assets.ChainDash.skillDescriptionToken, $"Make a quick dash. Press skill button between {utilityPrefix}{ChainDash.baseStartWindow} and {ChainDash.baseEndWindow} seconds{endPrefix} to {utilityPrefix}chain dash{endPrefix}. Succesfull chain dash will {utilityPrefix}reset current melee attack{endPrefix}");
@@ -133,6 +141,7 @@ namespace Demolisher
         }
         public static void InitBoots()
         {
+            if (!inited) return;
             AddLanguageToken(Assets.Boots.skillNameToken, BootsName);
             AddLanguageToken(Assets.Boots.skillNameToken, BootsNameRu, "ru");
             AddLanguageToken(Assets.Boots.skillDescriptionToken, $"{damagePrefix}Heavy{endPrefix}. Negates fall damage. Landing with enough velocity will create an explosion, dealing {damagePrefix}{Hooks.stompBaseDamageCoefficient * 100f}% base damage{endPrefix}. Hold jump button while midair to {utilityPrefix}pull yourself down{endPrefix}.");
@@ -140,52 +149,60 @@ namespace Demolisher
         }
         public static void InitGrenadeLauncher()
         {
-            AddLanguageToken(Assets.GrenadeLauncher.skillNameToken, "Impact Grenade");
-            AddLanguageToken(Assets.GrenadeLauncher.skillNameToken, "Ударная Граната", "ru");
+            if (!inited) return;
+            AddLanguageToken(Assets.GrenadeLauncher.skillNameToken, GreandeLauncherName);
+            AddLanguageToken(Assets.GrenadeLauncher.skillNameToken, GreandeLauncherNameRu, "ru");
             AddLanguageToken(Assets.GrenadeLauncher.skillDescriptionToken, $"Fire grenade that explodes on impact for {damagePrefix}{FireGrenadeConfig.damageCoefficient.Value * (Assets.GrenadeLauncher.demolisherWeaponDef as DemolisherProjectileWeaponDef).damageMultiplier * 100f}% base damage{endPrefix}.");
             AddLanguageToken(Assets.GrenadeLauncher.skillDescriptionToken, $"Выстрелите гранатой которая взрывается при столкновении наносящая {damagePrefix}{FireGrenadeConfig.damageCoefficient.Value * (Assets.GrenadeLauncher.demolisherWeaponDef as DemolisherProjectileWeaponDef).damageMultiplier * 100f}% урона{endPrefix}.", "ru");
         }
         public static void InitBombLauncher()
         {
-            AddLanguageToken(Assets.BombLauncher.skillNameToken, "Heavy Bomb");
-            AddLanguageToken(Assets.BombLauncher.skillNameToken, "Тяжелая Бомба", "ru");
+            if (!inited) return;
+            AddLanguageToken(Assets.BombLauncher.skillNameToken, BombLauncherName);
+            AddLanguageToken(Assets.BombLauncher.skillNameToken, BombLauncherNameRu, "ru");
             AddLanguageToken(Assets.BombLauncher.skillDescriptionToken, $"Fire bomb that damages on collision and explodes after time for {damagePrefix}{FireGrenadeConfig.damageCoefficient.Value * (Assets.BombLauncher.demolisherWeaponDef as DemolisherProjectileWeaponDef).damageMultiplier * 100f}% base damage{endPrefix}. Hold down skill button to {utilityPrefix}reduce detonation time{endPrefix}.");
             AddLanguageToken(Assets.BombLauncher.skillDescriptionToken, $"Выстрелите тяжелой бомбой которая наносит урон при столкновении и взрывается через время на {damagePrefix}{FireGrenadeConfig.damageCoefficient.Value * (Assets.BombLauncher.demolisherWeaponDef as DemolisherProjectileWeaponDef).damageMultiplier * 100f}% урона{endPrefix}. Держите кнопку умения чтобы {utilityPrefix}сократить время детонации{endPrefix}.", "ru");
         }
         public static void InitHookLauncher()
         {
-            AddLanguageToken(Assets.HookLauncher.skillNameToken, "Grappling Hook");
-            AddLanguageToken(Assets.HookLauncher.skillNameToken, "Крюк Кошка", "ru");
+            if (!inited) return;
+            AddLanguageToken(Assets.HookLauncher.skillNameToken, HookLauncherName);
+            AddLanguageToken(Assets.HookLauncher.skillNameToken, HookLauncherNameRu, "ru");
             AddLanguageToken(Assets.HookLauncher.skillDescriptionToken, $"Fire hook that {damagePrefix}moves hit enemies{endPrefix} or {utilityPrefix}pulls user{endPrefix} on terrain hit.");
             AddLanguageToken(Assets.HookLauncher.skillDescriptionToken, $"Выстрелите крюком который {damagePrefix}передвигает врагов{endPrefix} или {utilityPrefix}тегает пользователя{endPrefix} при столкновении с землей.", "ru");
 
         }
         public static void InitStickyLauncher()
         {
-            AddLanguageToken(Assets.StickyLauncher.skillNameToken, "Sticky Trap");
-            AddLanguageToken(Assets.StickyLauncher.skillNameToken, "Липкая Ловушка", "ru");
+            if (!inited) return;
+            AddLanguageToken(Assets.StickyLauncher.skillNameToken, StickyTrapLauncherName);
+            AddLanguageToken(Assets.StickyLauncher.skillNameToken, StickyTrapLauncherNameRu, "ru");
             AddLanguageToken(Assets.StickyLauncher.skillDescriptionToken, $"Fire sticky trap that sticks to enemies and surface and explodes on remote detonation for {damagePrefix}{FireGrenadeConfig.damageCoefficient.Value * (Assets.StickyLauncher.demolisherWeaponDef as DemolisherProjectileWeaponDef).damageMultiplier * 100f}% base damage{endPrefix}.");
             AddLanguageToken(Assets.StickyLauncher.skillDescriptionToken, $"Выстрелите липкой ловушкой которая прилипает к врагам и земле и взрывается при ручной детонации наносящая {damagePrefix}{FireGrenadeConfig.damageCoefficient.Value * (Assets.StickyLauncher.demolisherWeaponDef as DemolisherProjectileWeaponDef).damageMultiplier * 100f}% урона{endPrefix}.", "ru");
         }
         public static void InitDemolisherLauncher()
         {
+            if (!inited) return;
             AddLanguageToken(Assets.DemolisherLauncher.skillDescriptionToken, $"Fire Demolisher that explodes on impact for {damagePrefix}{FireGrenadeConfig.damageCoefficient.Value * (Assets.DemolisherLauncher.demolisherWeaponDef as DemolisherProjectileWeaponDef).damageMultiplier * 100f}% base damage{endPrefix}.");
         }
         public static void InitSwordPillar()
         {
+            if (!inited) return;
             AddLanguageToken(Assets.SwordPillar.skillNameToken, FireTallSwordName);
             AddLanguageToken(Assets.SwordPillar.skillNameToken, FireTallSwordNameRu, "ru");
-            AddLanguageToken(Assets.SwordPillar.skillDescriptionToken, $"{damagePrefix}Melee{endPrefix}. Fire tall projection of your sword that slices through enemies, impaling them for {damagePrefix}{FireTallSword.damageCoefficient * 100f}% base damage{endPrefix} and comes back.");
-            AddLanguageToken(Assets.SwordPillar.skillDescriptionToken, $"{damagePrefix}Меч{endPrefix}. Выстрелите высокой проекцией вашего мечя который прорубает сквозь врагов, нанося {damagePrefix}{FireTallSword.damageCoefficient * 100f}% урона{endPrefix} и возвращается.", "ru");
+            AddLanguageToken(Assets.SwordPillar.skillDescriptionToken, $"{damagePrefix}Melee{endPrefix}. Fire tall projection of your sword that slices through enemies, impaling them for {damagePrefix}{FireTallSword.damageCoefficient * 100f}% base damage{endPrefix} and comes back. Hold primary skill button before firing the projection to {utilityPrefix}ride it{endPrefix}. Can be {utilityPrefix}detonated{endPrefix} for early destruction.");
+            AddLanguageToken(Assets.SwordPillar.skillDescriptionToken, $"{damagePrefix}Меч{endPrefix}. Выстрелите высокой проекцией вашего мечя который прорубает сквозь врагов, нанося {damagePrefix}{FireTallSword.damageCoefficient * 100f}% урона{endPrefix} и возвращается. Зажмите кнопку основной атаки перед выстрелом проекции чтобы {utilityPrefix}оседлать её{endPrefix}. Может быть {utilityPrefix}сдетонирован{endPrefix} для ранего разрушения", "ru");
         }
         public static void InitParry()
         {
+            if (!inited) return;
             AddLanguageToken(Assets.Parry.skillNameToken, ParryName);
             AddLanguageToken(Assets.Parry.skillNameToken, ParryNameRu, "ru");
             AddLanguageToken(Assets.Parry.skillDescriptionToken, $"Parry an incoming attack and create and explosion that deals {damagePrefix}{Parry.damageCoefficient * 100f}% base damage{endPrefix} on succesfull parry.");
         }
         public static void InitDetonate()
         {
+            if (!inited) return;
             AddLanguageToken(Assets.Detonate.skillNameToken, "Remote Detonation");
             AddLanguageToken(Assets.Detonate.skillNameToken, "Ручная Детонация", "ru");
             AddLanguageToken(Assets.Detonate.skillDescriptionToken, $"Detonates all placed traps.");
@@ -193,6 +210,7 @@ namespace Demolisher
         }
         public static void InitWhirlwind()
         {
+            if (!inited) return;
             AddLanguageToken(Assets.Whirlwind.skillNameToken, WhirlwindMeleeName);
             AddLanguageToken(Assets.Whirlwind.skillNameToken, WhirlwindMeleeNameRu, "ru");
             AddLanguageToken(Assets.Whirlwind.skillDescriptionToken, $"{damagePrefix}Melee{endPrefix}. Hold to spin for {damagePrefix}{WhirlwindMelee.damageCoefficient * WhirlwindMelee.baseRotationsPerSecond * 100f}% base damage{endPrefix} per second.");
@@ -200,6 +218,7 @@ namespace Demolisher
         }
         public static void InitSlicing()
         {
+            if (!inited) return;
             AddLanguageToken(Assets.Slicing.skillNameToken, SlicingName);
             AddLanguageToken(Assets.Slicing.skillNameToken, SlicingNameRu, "ru");
             AddLanguageToken(Assets.Slicing.skillDescriptionToken, $"{damagePrefix}Melee{endPrefix}. Stop time and enter slicing flow. Press primary attack to slice through enemies for {damagePrefix}{Slice.damageCoefficient * 100f}% base damage{endPrefix}. Press skill button to exit the flow.");
@@ -207,6 +226,7 @@ namespace Demolisher
         }
         public static void InitCollapse()
         {
+            if (!inited) return;
             AddLanguageToken(Assets.Collapse.skillNameToken, CollapseName);
             AddLanguageToken(Assets.Collapse.skillNameToken, CollapseNameRu, "ru");
             AddLanguageToken(Assets.Collapse.skillDescriptionToken, $"Fire beam of collapse that explodes on collision for {damagePrefix}{FireCollapse.explosionDamageCoefficient * 100f}% base damage{endPrefix}.");
@@ -214,13 +234,15 @@ namespace Demolisher
         }
         public static void InitLaser()
         {
+            if (!inited) return;
             AddLanguageToken(Assets.Laser.skillNameToken, LaserName);
             AddLanguageToken(Assets.Laser.skillNameToken, LaserNameRu, "ru");
             AddLanguageToken(Assets.Laser.skillDescriptionToken, $"Hold to fire continuous beam of pressure for {damagePrefix}{Laser.damageCoefficient * (1f / Laser.hitInterval) * 100f}% base damage{endPrefix} per second.");
-            AddLanguageToken(Assets.Laser.skillDescriptionToken, $"Зажимайте чтобы стрелять непрерывным лучом давления, наносящий {damagePrefix}{Laser.damageCoefficient * (1f / Laser.hitInterval) * 100f}% урона{endPrefix} в секунду.", "ru");
+            AddLanguageToken(Assets.Laser.skillDescriptionToken, $"Зажмите чтобы стрелять непрерывным лучом давления, наносящий {damagePrefix}{Laser.damageCoefficient * (1f / Laser.hitInterval) * 100f}% урона{endPrefix} в секунду.", "ru");
         }
         public static void InitFly()
         {
+            if (!inited) return;
             AddLanguageToken(Assets.Fly.skillNameToken, FlyName);
             AddLanguageToken(Assets.Fly.skillNameToken, FlyName, "ru");
             AddLanguageToken(Assets.Fly.skillDescriptionToken, $"{damagePrefix}Heavy{endPrefix}. Turn into a missile, dealing {damagePrefix}{Fly.stompBaseDamageCoefficient * 100f}% base damage{endPrefix} on impact.");

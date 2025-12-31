@@ -13,23 +13,47 @@ namespace Demolisher
     {
         public static void Init()
         {
+            RocketjumpingConfig.Init();
             VisualsConfig.Init();
+            CreateConfigsForBulletAttackWeapon(Assets.SharpnessWeapon, SharpnessName, Language.InitSharpness);
+            CreateConfigsForBulletAttackWeapon(Assets.SoftnessWeapon, SoftnessName, Language.InitSoftness);
+            //CreateConfigsForBulletAttackWeapon(Assets.ChaosWeapon, ChaosName, Language.InitChaos);
+            CreateConfigsForProjectileWeapon(Assets.StickyWeapon, StickyTrapLauncherName, Language.InitStickyLauncher);
+            CreateConfigsForProjectileWeapon(Assets.GrenadeWeapon, GreandeLauncherName, Language.InitGrenadeLauncher);
+            CreateConfigsForProjectileWeapon(Assets.BombWeapon, BombLauncherName, Language.InitBombLauncher);
             SharpnessConfig.Init();
             SoftnessConfig.Init();
-            ChaosConfig.Init();
+            //ChaosConfig.Init();
             BootsConfig.Init();
             MediumMeleeAttackConfig.Init();
             FireGrenadeConfig.Init();
             ShieldChargeConfig.Init();
             WhirlwindMeleeConfig.Init();
-            ParryConfig.Init();
+            //ParryConfig.Init();
             CollapseConfig.Init();
             FireTallSwordConfig.Init();
-            SlicingConfig.Init();
+            //SlicingConfig.Init();
             ChainDashConfig.Init();
             FlyConfig.Init();
             LaserConfig.Init();
         }
+    }
+    public static class RocketjumpingConfig
+    {
+        public const string name = "Rocketjumping";
+        public static void Init()
+        {
+            RocketJumpForceMovespeedClamp = CreateConfig(name, "Rocketjump movespeed clamp", 2.5f, "");
+            RocketJumpForceMovespeedDivide = CreateConfig(name, "Rocketjump movespeed bonus division", 100f, "");
+            RocketJumpForceJumpClamp = CreateConfig(name, "Rocketjump jump clamp", 2.5f, "");
+            RocketJumpForceJumpDivide = CreateConfig(name, "Rocketjump jump bonus division", 100f, "");
+            RocketJumpAirControl = CreateConfig(name, "Rocketjump air control", 2f, "");
+        }
+        public static ConfigEntry<float> RocketJumpForceMovespeedClamp;
+        public static ConfigEntry<float> RocketJumpForceMovespeedDivide;
+        public static ConfigEntry<float> RocketJumpForceJumpClamp;
+        public static ConfigEntry<float> RocketJumpForceJumpDivide;
+        public static ConfigEntry<float> RocketJumpAirControl;
     }
     public static class VisualsConfig
     {
@@ -130,7 +154,7 @@ namespace Demolisher
     {
         public static void Init()
         {
-            stompNeededVelocity = CreateConfig(BootsName, "Minimum Velocity to Stomp", 64f, "");
+            stompNeededVelocity = CreateConfig(BootsName, "Minimum Velocity to Stomp", 80f, "");
             stompBaseDamageCoefficient = CreateConfig(BootsName, DamageCoefficientName, 1f, "");
             stompVelocityDamageCoefficient = CreateConfig(BootsName, SpeedDamageCoefficientName, 0.1f, "");
             stompProcCoefficient = CreateConfig(BootsName, ProcCoefficientName, 1f, "");
@@ -138,7 +162,7 @@ namespace Demolisher
             stompVelocityRadiusMultiplier = CreateConfig(BootsName, SpeedRadiusName, 0.1f, "");
             stompForce = CreateConfig(BootsName, ForceName, 100f, "");
             stompFalloff = CreateConfig(BootsName, BlastFalloffName, BlastAttack.FalloffModel.Linear, "");
-            pullStrength = CreateConfig(BootsName, "Pull Strength", 128f, "");
+            pullStrength = CreateConfig(BootsName, "Pull Strength", 64f, "");
             stompNeededVelocity.SettingChanged += OnConfigChanged;
             stompBaseDamageCoefficient.SettingChanged += OnConfigChanged;
             stompVelocityDamageCoefficient.SettingChanged += OnConfigChanged;
@@ -170,7 +194,7 @@ namespace Demolisher
             baseDuration = CreateConfig(MediumMeleeAttackName, DurationName, 0.3f, "");
             baseAttackDuration = CreateConfig(MediumMeleeAttackName, AttackDurationName, 0.3f, "");
             radius = CreateConfig(MediumMeleeAttackName, RadiusName, 3f, "");
-            maxDistance = CreateConfig(MediumMeleeAttackName, RangeName, 16f, "");
+            maxDistance = CreateConfig(MediumMeleeAttackName, RangeName, 12f, "");
             hitJump = CreateConfig(MediumMeleeAttackName, "Vertical Velocity on Hit", 0.35f, "");
             force = CreateConfig(MediumMeleeAttackName, ForceName, 500f, "");
             damageCoefficient.SettingChanged += OnConfigChanged;
@@ -316,12 +340,12 @@ namespace Demolisher
     {
         public static void Init()
         {
-            bulletDamageCoefficient = CreateConfig(CollapseName, BulletName + " " + DamageCoefficientName, 10f, "");
-            bulletProcCoefficient = CreateConfig(CollapseName, BulletName + " " + ProcCoefficientName, 1f, "");
-            bulletForce = CreateConfig(CollapseName, BulletName + " " + ForceName, 1000f, "");
+            bulletDamageCoefficient = CreateConfig(CollapseName, BulletName + " " + DamageCoefficientName, 0f, "");
+            bulletProcCoefficient = CreateConfig(CollapseName, BulletName + " " + ProcCoefficientName, 0f, "");
+            bulletForce = CreateConfig(CollapseName, BulletName + " " + ForceName, 0f, "");
             bulletRadius = CreateConfig(CollapseName, BulletName + " " + RadiusName, 2f, "");
-            explosionDamageCoefficient = CreateConfig(CollapseName, ExplosionName + " " + DamageCoefficientName, 10f, "");
-            explosionProcCoefficient = CreateConfig(CollapseName, ExplosionName + " " + ProcCoefficientName, 15f, "");
+            explosionDamageCoefficient = CreateConfig(CollapseName, ExplosionName + " " + DamageCoefficientName, 15f, "");
+            explosionProcCoefficient = CreateConfig(CollapseName, ExplosionName + " " + ProcCoefficientName, 1f, "");
             explosionForce = CreateConfig(CollapseName, ExplosionName + " " + ForceName, 1000f, "");
             explosionRadius = CreateConfig(CollapseName, ExplosionName + " " + RadiusName, 24f, "");
             selfForce = CreateConfig(CollapseName, "Self Push", 60f, "");

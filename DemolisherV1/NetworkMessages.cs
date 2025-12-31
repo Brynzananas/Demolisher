@@ -17,6 +17,7 @@ namespace Demolisher
         public static void Init()
         {
             NetworkingAPI.RegisterMessageType<FeetEffectNetMessage>();
+            NetworkingAPI.RegisterMessageType<VehicleSeatSetPassengerAuthority>();
         }
     }
     public class FeetEffectNetMessage : INetMessage
@@ -68,6 +69,37 @@ namespace Demolisher
         public void Serialize(NetworkWriter writer)
         {
             writer.Write(networkInstanceId);
+        }
+    }
+    public class VehicleSeatSetPassengerAuthority : INetMessage
+    {
+        public NetworkIdentity vehicleNetworkIdenity;
+        public NetworkIdentity bodyNetworkIdenity;
+        public VehicleSeatSetPassengerAuthority()
+        {
+
+        }
+        public VehicleSeatSetPassengerAuthority(NetworkIdentity vehicleNetworkIdenity, NetworkIdentity bodyNetworkIdenity)
+        {
+            this.vehicleNetworkIdenity = vehicleNetworkIdenity;
+            this.bodyNetworkIdenity = bodyNetworkIdenity;
+        }
+        public void Deserialize(NetworkReader reader)
+        {
+            vehicleNetworkIdenity = reader.ReadNetworkIdentity();
+            bodyNetworkIdenity = reader.ReadNetworkIdentity();
+        }
+        public void OnReceived()
+        {
+            if (!vehicleNetworkIdenity || !bodyNetworkIdenity) return;
+            VehicleSeat vehicleSeat = vehicleNetworkIdenity.GetComponent<VehicleSeat>();
+            if (!vehicleSeat) return;
+            vehicleSeat.SetPassenger(bodyNetworkIdenity.gameObject);
+        }
+        public void Serialize(NetworkWriter writer)
+        {
+            writer.Write(vehicleNetworkIdenity);
+            writer.Write(bodyNetworkIdenity);
         }
     }
 }

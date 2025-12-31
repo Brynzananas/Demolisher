@@ -27,6 +27,14 @@ namespace Demolisher
         public const string SoftnessNameRu = "Мягкость";
         public const string ChaosName = "Chaos";
         public const string ChaosNameRu = "Хаос";
+        public const string StickyTrapLauncherName = "Sticky Trap";
+        public const string StickyTrapLauncherNameRu = "Липкая Ловушка";
+        public const string GreandeLauncherName = "Impact Grenade";
+        public const string GreandeLauncherNameRu = "Ударная Граната";
+        public const string BombLauncherName = "Heavy Bomb";
+        public const string BombLauncherNameRu = "Тяжелая Бомба";
+        public const string HookLauncherName = "Grappling Hook";
+        public const string HookLauncherNameRu = "Крюк Кошка";
         public const string BootsName = "Heavy Boots";
         public const string BootsNameRu = "Тяжелые Ботинки";
         public const string MediumMeleeAttackName = "Sword Slash";
@@ -106,6 +114,52 @@ namespace Demolisher
             if (value != null) entry.Value = (T)value;
             if (DemolisherPlugin.riskOfOptionsEnabled) ModCompatabilities.RiskOfOptionsCompatability.AddConfig(entry);
             return entry;
+        }
+        public static void CreateConfigsForBulletAttackWeapon(DemolisherBulletAttackWeaponDef demolisherBulletAttackWeaponDef, string name, Action onConfigChanged)
+        {
+            ConfigEntry<float> damageMultiplier = CreateConfig(name, Keywords.DamageCoefficientName, demolisherBulletAttackWeaponDef.damageMultiplier, "");
+            ConfigEntry<float> attackSpeedMultiplier = CreateConfig(name, "Attack Speed Coefficient", demolisherBulletAttackWeaponDef.attackSpeedMultiplier, "");
+            ConfigEntry<float> procMultiplier = CreateConfig(name, Keywords.ProcCoefficientName, demolisherBulletAttackWeaponDef.procMultiplier, "");
+            ConfigEntry<float> forceMultiplier = CreateConfig(name, Keywords.ForceName + " Coefficient", demolisherBulletAttackWeaponDef.forceMultiplier, "");
+            ConfigEntry<float> radiusMultiplier = CreateConfig(name, Keywords.RadiusName + " Coefficient", demolisherBulletAttackWeaponDef.radiusMultiplier, "");
+            ConfigEntry<float> distanceMultiplier = CreateConfig(name, Keywords.DistanceName + " Coefficient", demolisherBulletAttackWeaponDef.distanceMultiplier, "");
+            damageMultiplier.SettingChanged += SettingChanged;
+            attackSpeedMultiplier.SettingChanged += SettingChanged;
+            procMultiplier.SettingChanged += SettingChanged;
+            forceMultiplier.SettingChanged += SettingChanged;
+            radiusMultiplier.SettingChanged += SettingChanged;
+            distanceMultiplier.SettingChanged += SettingChanged;
+            void SettingChanged(object sender, EventArgs e)
+            {
+                demolisherBulletAttackWeaponDef.damageMultiplier = damageMultiplier.Value;
+                demolisherBulletAttackWeaponDef.attackSpeedMultiplier = attackSpeedMultiplier.Value;
+                demolisherBulletAttackWeaponDef.procMultiplier = procMultiplier.Value;
+                demolisherBulletAttackWeaponDef.forceMultiplier = forceMultiplier.Value;
+                demolisherBulletAttackWeaponDef.radiusMultiplier = radiusMultiplier.Value;
+                demolisherBulletAttackWeaponDef.distanceMultiplier = distanceMultiplier.Value;
+                onConfigChanged?.Invoke();
+            }
+            SettingChanged(null, null);
+        }
+        public static void CreateConfigsForProjectileWeapon(DemolisherProjectileWeaponDef demolisherProjectileWeaponDef, string name, Action onConfigChanged)
+        {
+            ConfigEntry<float> damageMultiplier = CreateConfig(name, Keywords.DamageCoefficientName, demolisherProjectileWeaponDef.damageMultiplier, "");
+            ConfigEntry<float> attackSpeedMultiplier = CreateConfig(name, "Attack Speed Coefficient", demolisherProjectileWeaponDef.attackSpeedMultiplier, "");
+            ConfigEntry<float> forceMultiplier = CreateConfig(name, Keywords.ForceName + " Coefficient", demolisherProjectileWeaponDef.forceMultiplier, "");
+            ConfigEntry<float> speed = CreateConfig(name, "Speed", demolisherProjectileWeaponDef.speed, "If -1 then don't override");
+            damageMultiplier.SettingChanged += SettingChanged;
+            attackSpeedMultiplier.SettingChanged += SettingChanged;
+            forceMultiplier.SettingChanged += SettingChanged;
+            speed.SettingChanged += SettingChanged;
+            void SettingChanged(object sender, EventArgs e)
+            {
+                demolisherProjectileWeaponDef.damageMultiplier = damageMultiplier.Value;
+                demolisherProjectileWeaponDef.attackSpeedMultiplier = attackSpeedMultiplier.Value;
+                demolisherProjectileWeaponDef.forceMultiplier = forceMultiplier.Value;
+                demolisherProjectileWeaponDef.speed = speed.Value;
+                onConfigChanged?.Invoke();
+            }
+            SettingChanged(null, null);
         }
         public static string GetInScenePath(Transform transform)
         {

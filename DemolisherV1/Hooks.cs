@@ -199,10 +199,10 @@ namespace Demolisher
             IL.RoR2.BulletAttack.DefaultHitCallbackImplementation -= BulletAttack_DefaultHitCallbackImplementation;
             RoR2Application.onLoad -= Language.Init;
         }
-        public static float DemolisherExtraAirControlFromVelocityAdd = 15f;
+        public static float DemolisherExtraAirControlFromVelocityAdd => RocketjumpingConfig.RocketJumpAirControl.Value;
         private static float BrynzaAPI_GetExtraAirControlFromVelocityAdd(CharacterMotor characterMotor)
         {
-            return (characterMotor.body.GetBuffCount(Assets.DemolisherAirControlFromVelocityAddBuff) + characterMotor.body.GetClientBuffCount(Assets.DemolisherAirControlFromVelocityAddBuff)) * DemolisherExtraAirControlFromVelocityAdd;
+            return (characterMotor.body.GetBuffCount(Assets.DemolisherAirControlFromVelocityAddBuff) + characterMotor.body.GetClientBuffCount(Assets.DemolisherAirControlFromVelocityAddBuff)) > 0 ? DemolisherExtraAirControlFromVelocityAdd : 0f;
         }
         public static float BootsPullStrength => BootsConfig.pullStrength.Value;
         public static float timeUntilCanPull = 0.5f;
@@ -593,7 +593,7 @@ namespace Demolisher
             {
                 HealthComponent attackerHealthComponent = attackerBody.healthComponent;
                 if (attackerHealthComponent) if (damageInfo.HasModdedDamageType(Assets.SoftnessDamageType)) attackerHealthComponent.OverhealFraction(SoftnessHealOnHitPercentage / 100f * (demolisherDamageInfo == null ? 1f : demolisherDamageInfo.effectCoefficient));
-                if (damageInfo.HasModdedDamageType(Assets.ChaosDamageType) && !attackerBody.HasBuff(Assets.ChaosCooldown))
+                if (false && damageInfo.HasModdedDamageType(Assets.ChaosDamageType) && !attackerBody.HasBuff(Assets.ChaosCooldown))
                 {
                     BlastAttack blastAttack = new BlastAttack
                     {

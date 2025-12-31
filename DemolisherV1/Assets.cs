@@ -121,6 +121,7 @@ namespace Demolisher
         public static DamageAPI.ModdedDamageType ChaosDamageType = DamageAPI.ReserveDamageType();
         public static DamageAPI.ModdedDamageType BombDamageType = DamageAPI.ReserveDamageType();
         public static RocketJumpDelegateDef AddFeetEffect;
+        public static RocketJumpDelegateDef DemolisherRocketJump;
         public static OnMasterSummonDelegateDef SetBodyStateToMainOnSpawn;
         public static SkinSkillVariantsDef skinSkillVariantsDef;
         public static SkinSkillVariantsDef skinNuclearSkillVariantsDef;
@@ -316,8 +317,11 @@ namespace Demolisher
             BombWeapon.moddedDamageTypes = [BombDamageType];
             HookWeapon = HookLauncher.RegisterWeapon<DemolisherWeaponSkillDef, DemolisherProjectileWeaponDef>(null, null);
             StickyWeapon = StickyLauncher.RegisterWeapon<DemolisherWeaponSkillDef, DemolisherProjectileWeaponDef>(null, null);
+            DemolisherWeapon = DemolisherLauncher.RegisterWeapon<DemolisherWeaponSkillDef, DemolisherProjectileWeaponDef>(null, null);
             AddFeetEffect = assetBundle.LoadAsset<RocketJumpDelegateDef>("Assets/Demolisher/DelegateDefs/AddFeetEffect.asset");
             AddFeetEffect.@delegate = DemolisherFeetEffect.AddFeetSmoke;
+            DemolisherRocketJump = assetBundle.LoadAsset<RocketJumpDelegateDef>("Assets/Demolisher/DelegateDefs/DemolisherRocketJump.asset");
+            DemolisherRocketJump.@delegate = HandleDemolisherRocketJump;
             SetBodyStateToMainOnSpawn = assetBundle.LoadAsset<OnMasterSummonDelegateDef>("Assets/Demolisher/DelegateDefs/SetBodyStateToMainOnSpawn.asset");
             SetBodyStateToMainOnSpawn.@delegate = SetBodyStateToMain;
             typeof(DemolisherMainState).RegisterEntityState();
@@ -375,7 +379,55 @@ namespace Demolisher
             RocketJumpComponent rocketJumpComponent = projectile.GetComponent<RocketJumpComponent>();
             if (!rocketJumpComponent) return;
             //rocketJumpComponent.buffsWhileMidair = [BrynzaAPI.Assets.KeepVelocityBuff, DemolisherAirControlFromVelocityAddBuff];
-            rocketJumpComponent.clientBuffsWhileMidair = [BrynzaAPI.Assets.KeepVelocityBuff, DemolisherAirControlFromVelocityAddBuff];
+            rocketJumpComponent.clientBuffsWhileMidair = [BrynzaAPI.Assets.UseMaxAirVelocityBuff, DemolisherAirControlFromVelocityAddBuff];
+        }
+        public static float rocketJumpForceMovespeedClamp => RocketjumpingConfig.RocketJumpForceMovespeedClamp.Value;
+        public static float rocketJumpForceMovespeedDivide => RocketjumpingConfig.RocketJumpForceMovespeedDivide.Value;
+        public static float rocketJumpForceJumpClamp => RocketjumpingConfig.RocketJumpForceJumpClamp.Value;
+        public static float rocketJumpForceJumpDivide => RocketjumpingConfig.RocketJumpForceJumpDivide.Value;
+        public static void HandleDemolisherRocketJump(RocketJumpComponent rocketJumpComponent, CharacterBody characterBody, Vector3 force)
+        {
+            CharacterMotor characterMotor = characterBody.characterMotor;
+            Rigidbody rigidbody = characterBody.rigidbody;
+            if (characterMotor)
+            {
+                if (characterMotor.isFlying)
+                {
+                    float velocityMagn = characterMotor.velocity.magnitude;
+                    float forceMagn = force.magnitude;
+                    float moveSpeed = characterBody.moveSpeed * rocketJumpForceMovespeedClamp;
+                    float magn = velocityMagn - forceMagn;
+                    magn += Mathf.Lerp(forceMagn, 0f, magn / moveSpeed) + forceMagn * characterBody.moveSpeed / rocketJumpForceMovespeedDivide;
+                    characterMotor.velocity = Vector3.ClampMagnitude(characterMotor.velocity, magn);
+                }
+                else
+                {
+                    float verticalVelocity = Mathf.Abs(characterMotor.velocity.y);
+                    float jump = characterBody.jumpPower * rocketJumpForceJumpClamp;
+                    float verticalVelocityBefore = verticalVelocity - force.y;
+                    float verticalForceAdd = Mathf.Lerp(force.y, 0f, verticalVelocityBefore / jump);
+                    verticalVelocityBefore += verticalForceAdd + force.y * characterBody.jumpPower / rocketJumpForceJumpDivide;
+                    Vector2 horizontalForce = new Vector2(force.x, force.z);
+                    float forceMagn = horizontalForce.magnitude;
+                    Vector2 horizontalVelocity = new Vector2 (characterMotor.velocity.x, characterMotor.velocity.z);
+                    float horizontalVelocityMagn = horizontalVelocity.magnitude;
+                    float moveSpeed = characterBody.moveSpeed * rocketJumpForceMovespeedClamp;
+                    float magn = horizontalVelocityMagn - forceMagn;
+                    float horizontalForceAdd = Mathf.Lerp(horizontalVelocityMagn, 0f, magn / moveSpeed);
+                    magn += horizontalForceAdd + forceMagn * characterBody.moveSpeed / rocketJumpForceMovespeedDivide;
+                    horizontalVelocity = Vector2.ClampMagnitude(horizontalVelocity, magn);
+                    characterMotor.velocity = new Vector3(horizontalVelocity.x, verticalVelocityBefore, horizontalVelocity.y);
+                }
+            }
+            else if (rigidbody)
+            {
+                float velocityMagn = rigidbody.velocity.magnitude;
+                float forceMagn = force.magnitude;
+                float moveSpeed = characterBody.moveSpeed * rocketJumpForceMovespeedClamp;
+                float magn = velocityMagn - forceMagn;
+                magn += Mathf.Lerp(forceMagn, 0f, magn / moveSpeed) + forceMagn * characterBody.moveSpeed / rocketJumpForceMovespeedDivide;
+                rigidbody.velocity = Vector3.ClampMagnitude(rigidbody.velocity, magn);
+            }
         }
     }
 }
