@@ -43,9 +43,9 @@ namespace Demolisher
         public const string name = "Rocketjumping";
         public static void Init()
         {
-            RocketJumpForceMovespeedClamp = CreateConfig(name, "Rocketjump movespeed clamp", 2.5f, "");
+            RocketJumpForceMovespeedClamp = CreateConfig(name, "Rocketjump movespeed clamp", 1.5f, "");
             RocketJumpForceMovespeedDivide = CreateConfig(name, "Rocketjump movespeed bonus division", 100f, "");
-            RocketJumpForceJumpClamp = CreateConfig(name, "Rocketjump jump clamp", 2.5f, "");
+            RocketJumpForceJumpClamp = CreateConfig(name, "Rocketjump jump clamp", 1.5f, "");
             RocketJumpForceJumpDivide = CreateConfig(name, "Rocketjump jump bonus division", 100f, "");
             RocketJumpAirControl = CreateConfig(name, "Rocketjump air control", 2f, "");
         }
@@ -191,7 +191,7 @@ namespace Demolisher
             damageCoefficient = CreateConfig(MediumMeleeAttackName, DamageCoefficientName, 3f, "");
             procCoefficient = CreateConfig(MediumMeleeAttackName, ProcCoefficientName, 1f, "");
             effectCoefficient = CreateConfig(MediumMeleeAttackName, EffectCoefficientName, 1f, "");
-            baseDuration = CreateConfig(MediumMeleeAttackName, DurationName, 0.3f, "");
+            baseDuration = CreateConfig(MediumMeleeAttackName, DurationName, 0.2f, "");
             baseAttackDuration = CreateConfig(MediumMeleeAttackName, AttackDurationName, 0.3f, "");
             radius = CreateConfig(MediumMeleeAttackName, RadiusName, 3f, "");
             maxDistance = CreateConfig(MediumMeleeAttackName, RangeName, 12f, "");
@@ -444,15 +444,15 @@ namespace Demolisher
     {
         public static void Init()
         {
-            baseFlyVectorSmoothTime = CreateConfig(FlyName, MovementControlName, 0.2f, "");
+            baseFlyVectorSmoothTime = CreateConfig(FlyName, MovementControlName, 0.1f, "");
             baseSpeedMultiplier = CreateConfig(FlyName, SpeedMultiplierName, 1f, "");
             baseSpeedSmoothTime = CreateConfig(FlyName, "Speed Smooth Time", 1f, "");
             groundPush = CreateConfig(FlyName, "Vertical Push if Grounded", 5f, "");
-            stompBaseDamageCoefficient = CreateConfig(FlyName, DamageCoefficientName, 2f, "");
-            stompVelocityDamageCoefficient = CreateConfig(FlyName, SpeedDamageCoefficientName, 0.5f, "");
+            stompBaseDamageCoefficient = CreateConfig(FlyName, DamageCoefficientName, 10f, "");
+            stompVelocityDamageCoefficient = CreateConfig(FlyName, SpeedDamageCoefficientName, 0.7f, "");
             stompProcCoefficient = CreateConfig(FlyName, ProcCoefficientName, 1f, "");
-            stompBaseRadius = CreateConfig(FlyName, RadiusName, 3f, "");
-            stompVelocityRadiusMultiplier = CreateConfig(FlyName, SpeedRadiusName, 0.2f, "");
+            stompBaseRadius = CreateConfig(FlyName, RadiusName, 9f, "");
+            stompVelocityRadiusMultiplier = CreateConfig(FlyName, SpeedRadiusName, 0.3f, "");
             stompForce = CreateConfig(FlyName, ForceName, 100f, "");
             stompFalloff = CreateConfig(FlyName, BlastFalloffName, BlastAttack.FalloffModel.Linear, "");
             baseFlyVectorSmoothTime.SettingChanged += OnConfigChanged;

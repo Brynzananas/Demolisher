@@ -787,17 +787,20 @@ namespace Demolisher
         }
         public void OnDisable()
         {
-            if (expirationEffectPrefab)
+            if (swordPillarTransform)
             {
-                EffectData effectData = new EffectData
+                if (expirationEffectPrefab)
                 {
-                    origin = transform.position,
-                    rotation = swordPillarTransform.rotation
-                };
-                effectData.SetScale(swordPillarTransform.localScale);
-                EffectManager.SpawnEffect(expirationEffectPrefab, effectData, false);
+                    EffectData effectData = new EffectData
+                    {
+                        origin = transform.position,
+                        rotation = swordPillarTransform.rotation
+                    };
+                    effectData.SetScale(swordPillarTransform.localScale);
+                    EffectManager.SpawnEffect(expirationEffectPrefab, effectData, false);
+                }
+                swordPillarTransform.gameObject.SetActive(false);
             }
-            if (swordPillarTransform) swordPillarTransform.gameObject.SetActive(false);
         }
         public void OnDestroy()
         {
@@ -1163,7 +1166,7 @@ namespace Demolisher
             if (obj.victim == null) return;
             if (obj.victim.gameObject == gameObject)
             {
-                PlayVoiceline(VoicelineDef.VoicelineType.Death);
+                PlayVoiceline(VoicelineDef.VoicelineType.Death, 0, true);
                 return;
             }
             if (obj.attacker == null || obj.attacker != gameObject) return;
@@ -1174,11 +1177,11 @@ namespace Demolisher
             ProjectileRemoteDetonation projectileRemoteDetonation = obj.damageInfo.inflictor ? obj.damageInfo.inflictor.GetComponent<ProjectileRemoteDetonation>() : null;
             if (projectileRemoteDetonation)
             {
-                PlayVoiceline(VoicelineDef.VoicelineType.TrapKill, timer);
+                PlayVoiceline(VoicelineDef.VoicelineType.TrapKill, timer, true);
             }
             else
             {
-                PlayVoiceline(VoicelineDef.VoicelineType.Kill, timer);
+                PlayVoiceline(VoicelineDef.VoicelineType.Kill, timer, true);
             }
         }
         public void FixedUpdate()
