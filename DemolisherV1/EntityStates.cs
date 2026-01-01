@@ -979,7 +979,7 @@ namespace Demolisher
             PlayAnimation("Gesture, Override", "BufferEmpty");
             EffectData effectData = new EffectData
             {
-                rootObject = characterBody.coreTransform.gameObject ?? characterBody.gameObject,
+                rootObject = characterBody.gameObject,
             };
             effectData.SetScale(effectScale);
             EffectManager.SpawnEffect(Assets.ShieldChargeEffect.index, effectData, false);
@@ -2296,7 +2296,7 @@ namespace Demolisher
             {
                 scale = effectScale,
                 genericFloat = effectDuration,
-                rootObject = characterBody.mainHurtBox.gameObject,
+                rootObject = gameObject,
                 origin = characterBody.mainHurtBox.transform.position
             };
             EffectManager.SpawnEffect(Assets.Trail.index, effectData, false);
