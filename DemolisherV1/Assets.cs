@@ -16,6 +16,7 @@ using UnityEngine.Rendering.PostProcessing;
 using static Demolisher.Content;
 using static R2API.SkinSkillVariants;
 using static BrynzaAPI.BrynzaAPI;
+using RoR2.UI;
 
 namespace Demolisher
 {
@@ -93,6 +94,7 @@ namespace Demolisher
         public static UnlockableDef CollapseUnlock;
         public static SkillDef Fly;
         public static UnlockableDef FlyUnlock;
+        public static SkillDef Grab;
         public static SkillDef Laser;
         public static SkillFamily Passive;
         public static SkillFamily MeleeWeapon;
@@ -128,6 +130,8 @@ namespace Demolisher
         public static PostProcessProfile TimestopPP;
         public static NetworkSoundEventDef ShieldBashSound;
         public static BodyIndex DemolisherBodyIndex;
+        public static Sprite DefaultDamagedPortraitIcon;
+        public static Sprite DefaultDevilPortraitIcon;
         public static void Init()
         {
             assetBundle = AssetBundle.LoadFromFileAsync(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(global::Demolisher.DemolisherPlugin.PInfo.Location), "assetbundles", "demolisherassets")).assetBundle;
@@ -157,6 +161,8 @@ namespace Demolisher
             {
                 voicelineDef.Register();
             }
+            DefaultDamagedPortraitIcon = assetBundle.LoadAsset<Sprite>("Assets/Demolisher/Textures/DemolisherDamagedIcon.png");
+            DefaultDevilPortraitIcon = assetBundle.LoadAsset<Sprite>("Assets/Demolisher/Textures/DemolisherDevilIcon.png");
             DemolisherBody = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Character/DemolisherBody.prefab").RegisterCharacterBody();
             DemolisherMaster = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Character/DemolisherMonsterMaster.prefab").RegisterCharacterMaster();
             DemolisherElevator = assetBundle.LoadAsset<GameObject>("Assets/Demolisher/Elevator/DemolisherElevator.prefab").RegisterNetworkPrefab();
@@ -179,7 +185,9 @@ namespace Demolisher
             //CameraTargetParams cameraTargetParams = DemolisherBody.GetComponent<CameraTargetParams>();
             //cameraTargetParams.cameraParams = Addressables.LoadAssetAsync<CharacterCameraParams>("RoR2/Base/Common/ccpStandard.asset").WaitForCompletion();
             DemolisherCharacterBody = DemolisherBody.GetComponent<CharacterBody>();
-            DemolisherCharacterBody.AddModdedBodyFlag(BrynzaAPI.Assets.SprintAllTime);
+            DemolisherCharacterBody.AddModdedBodyFlag(CharacterBodyAPI.AlwaysSprint);
+            //DemolisherCharacterBody.SetIngameDynamicPortraitIcon(GetDemolisherPortraitIcon);
+            //DemolisherCharacterBody.SetLobbyDynamicPortraitIcon(GetDemolisherPortraitIcon);
             DemolisherCharacterBody.preferredPodPrefab = DemolisherElevator; //LegacyResourcesAPI.Load<GameObject>("Prefabs/NetworkedObjects/SurvivorPod");//Addressables.LoadAssetAsync<GameObject>("RoR2/Base/SurvivorPod/SurvivorPod.prefab").WaitForCompletion();
             DemolisherCharacterBody._defaultCrosshairPrefab = LegacyResourcesAPI.Load<GameObject>("Prefabs/Crosshair/SimpleDotCrosshair");// Addressables.LoadAssetAsync<GameObject>("RoR2/Base/UI/StandardCrosshair.prefab").WaitForCompletion();
             CharacterMotor characterMotor = DemolisherCharacterBody.GetComponent<CharacterMotor>();
@@ -265,6 +273,7 @@ namespace Demolisher
             Slicing = assetBundle.LoadAsset<SkillDef>("Assets/Demolisher/SkillDefs/MeleeSpecial/DemolisherSlicing.asset").RegisterSkillDef();
             Collapse = assetBundle.LoadAsset<SkillDef>("Assets/Demolisher/SkillDefs/RangedSpecial/DemolisherCollapse.asset").RegisterSkillDef();
             Fly = assetBundle.LoadAsset<SkillDef>("Assets/Demolisher/SkillDefs/MeleeSpecial/DemolisherFly.asset").RegisterSkillDef();
+            Grab = assetBundle.LoadAsset<SkillDef>("Assets/Demolisher/SkillDefs/MeleeSpecial/DemolisherGrab.asset").RegisterSkillDef();
             Laser = assetBundle.LoadAsset<SkillDef>("Assets/Demolisher/SkillDefs/RangedSpecial/DemolisherLaser.asset").RegisterSkillDef(AutoSetBonusStockFromBody);
             Passive = assetBundle.LoadAsset<SkillFamily>("Assets/Demolisher/SkillFamilies/DemolisherPassive.asset").RegisterSkillFamily();
             MeleeWeapon = assetBundle.LoadAsset<SkillFamily>("Assets/Demolisher/SkillFamilies/DemolisherMeleeWeapon.asset").RegisterSkillFamily();
@@ -306,6 +315,7 @@ namespace Demolisher
             CrosshairMeleeSprite = assetBundle.LoadAsset<Sprite>("Assets/Demoman/UI/DemoSwordIndicatorThinHalf2.png");
             CrosshairRangedSprite = assetBundle.LoadAsset<Sprite>("Assets/Demoman/UI/DemoStickyIndicatorThinHalf2.png");
             DemolisherCharacterBody.SetCustomSprintIcon(Parry.icon);
+            DemolisherCharacterBody.SetCustomSprintColor(Color.white);
             SharpnessWeapon = Sharpness.RegisterWeapon<DemolisherWeaponSkillDef, DemolisherBulletAttackWeaponDef>(null, null);
             SharpnessWeapon.moddedDamageTypes = [SharpnessDamageType];
             SoftnessWeapon = Softness.RegisterWeapon<DemolisherWeaponSkillDef, DemolisherBulletAttackWeaponDef>(null, null);
@@ -350,6 +360,8 @@ namespace Demolisher
             typeof(ChainDash).RegisterEntityState();
             typeof(Fly).RegisterEntityState();
             typeof(Laser).RegisterEntityState();
+            typeof(LashUltGrab).RegisterEntityState();
+            typeof(LashUltThrow).RegisterEntityState();
             typeof(Ascend).RegisterEntityState();
             typeof(Arrived).RegisterEntityState();
             typeof(Open).RegisterEntityState();
@@ -429,5 +441,26 @@ namespace Demolisher
                 rigidbody.velocity = Vector3.ClampMagnitude(rigidbody.velocity, magn);
             }
         }
+        /*public static Texture GetDemolisherPortraitIcon(AllyCardController allyCardController)
+        {
+            CharacterBody characterBody = allyCardController.cachedSourceCharacterBody;
+            if (!characterBody) return null;
+            CharacterModel characterModel = characterBody.GetCharacterModel();
+            DemolisherModel demolisherModel = characterModel ? characterModel as DemolisherModel : null;
+            DemolisherSkinDef demolisherSkinDef = allyCardController.GetSkinDef() ? allyCardController.GetSkinDef() as DemolisherSkinDef : null;
+            if (demolisherModel.devilCount > 0) return demolisherSkinDef && demolisherSkinDef.devilPortraitIcon ? demolisherSkinDef.devilPortraitIcon.texture : DefaultDevilPortraitIcon.texture;
+            if (allyCardController.cachedHealthComponent.isHealthLow) return demolisherSkinDef && demolisherSkinDef.damagedPortraitIcon ? demolisherSkinDef.damagedPortraitIcon.texture : DefaultDamagedPortraitIcon.texture;
+            return demolisherSkinDef && demolisherSkinDef.portraitIcon ? demolisherSkinDef.portraitIcon.texture : allyCardController.cachedSourceCharacterBody.portraitIcon;
+        }
+        public static Texture GetDemolisherPortraitIcon(SurvivorIconController survivorIconController)
+        {
+            DemolisherModel demolisherModel = survivorIconController.GetLobbyCharacterModel() ? survivorIconController.GetLobbyCharacterModel() as DemolisherModel : null;
+            SkinDef skinDef = survivorIconController.GetSkinDef(DemolisherBodyIndex);
+            if (skinDef == null) return survivorIconController.survivorBodyPrefabBodyComponent.portraitIcon;
+            DemolisherSkinDef demolisherSkinDef = skinDef as DemolisherSkinDef;
+            if (demolisherModel && demolisherModel.devilCount > 0) return demolisherSkinDef && demolisherSkinDef.devilPortraitIcon ? demolisherSkinDef.devilPortraitIcon.texture : DefaultDevilPortraitIcon.texture;
+            if (!survivorIconController.survivorIsAvailable) return demolisherSkinDef && demolisherSkinDef.damagedPortraitIcon ? demolisherSkinDef.damagedPortraitIcon.texture : DefaultDamagedPortraitIcon.texture;
+            return demolisherSkinDef && demolisherSkinDef.portraitIcon ? demolisherSkinDef.portraitIcon.texture : survivorIconController.survivorBodyPrefabBodyComponent.portraitIcon;
+        }*/
     }
 }

@@ -35,7 +35,7 @@ namespace Demolisher
     {
         public const string ModGuid = "com.brynzananas.demolisher";
         public const string ModName = "Demolisher";
-        public const string ModVer = "0.6.2";
+        public const string ModVer = "0.6.3";
 
         public static bool emotesEnabled { get; private set; }
         public static bool riskOfOptionsEnabled { get; private set; }
@@ -46,9 +46,7 @@ namespace Demolisher
         public void Awake()
         {
             PInfo = Info;
-            //Config = new ConfigFile(Paths.BepInExConfigPath, true);
             configFile = Config;
-            //configFile.Reload();
             Log = Logger;
             emotesEnabled = BepInEx.Bootstrap.Chainloader.PluginInfos.ContainsKey(ModCompatabilities.EmoteCompatability.GUID);
             riskOfOptionsEnabled = BepInEx.Bootstrap.Chainloader.PluginInfos.ContainsKey(ModCompatabilities.RiskOfOptionsCompatability.GUID);

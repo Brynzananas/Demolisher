@@ -2411,9 +2411,17 @@ namespace Demolisher
     {
         public DemolisherWeaponDef demolisherWeaponDef;
     }
+    [CreateAssetMenu(menuName = "Demolisher/DemolisherSkinDefParams")]
     public class DemolisherSkinDefParams : SkinDefParams
     {
         public Material devilMaterial;
+    }
+    [CreateAssetMenu(menuName = "Demolisher/DemolisherSkinDef")]
+    public class DemolisherSkinDef : SkinDef
+    {
+        public Sprite portraitIcon;
+        public Sprite damagedPortraitIcon;
+        public Sprite devilPortraitIcon;
     }
     public class DemolisherRuntimeSkin : SkinDef.RuntimeSkin
     {

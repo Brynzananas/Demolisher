@@ -214,7 +214,7 @@ namespace Demolisher
                         if (!characterMaster.hasAuthority) continue;
                         Inventory inventory = characterMaster.inventory;
                         if (!inventory) continue;
-                        foreach (EquipmentState[] equipmentStates in inventory._equipmentStateSlots) foreach (EquipmentState equipmentState in equipmentStates)  if (equipmentState.equipmentIndex == RoR2Content.Equipment.QuestVolatileBattery.equipmentIndex) Grant();
+                        foreach(Inventory.EquipmentStateSlot equipmentStateSlot in inventory._equipmentSlots) foreach (EquipmentState equipmentState in equipmentStateSlot._sets) if (equipmentState.equipmentIndex == RoR2Content.Equipment.QuestVolatileBattery.equipmentIndex) Grant();
                     }
                 }
             }

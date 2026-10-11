@@ -4,6 +4,7 @@ using EntityStates;
 using EntityStates.Bison;
 using EntityStates.Engi.EngiWeapon;
 using HG;
+using KinematicCharacterController;
 using R2API;
 using RoR2;
 using RoR2.Audio;
@@ -13,12 +14,14 @@ using RoR2.Projectile;
 using RoR2.Skills;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Xml.Xsl;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Networking;
 using UnityEngine.UIElements.StyleSheets;
+using static Demolisher.LashUltGrab;
 using static Rewired.ComponentControls.Effects.RotateAroundAxis;
 using static RoR2.BodyAnimatorSmoothingParameters;
 using static RoR2.CameraRigController;
@@ -65,7 +68,7 @@ namespace Demolisher
                 return _demolisherComponent;
             }
         }
-        public bool canSwapBySprint => characterBody.HasModdedBodyFlag(BrynzaAPI.Assets.SprintAllTime);
+        public bool canSwapBySprint => characterBody.HasModdedBodyFlag(CharacterBodyAPI.AlwaysSprint);
         public override void OnEnter()
         {
             base.OnEnter();
@@ -83,7 +86,7 @@ namespace Demolisher
                 //if (inputBank.sprint.justReleased && CanExecuteSkill(utilitySkill) && utilitySkill.ExecuteIfReady()) utilityButtonState.hasPressBeenClaimed = true;
                 if (canSwapBySprint)
                 {
-                    if (inputBank.sprint.justPressed) SwapWeapons();
+                    if (inputBank.rawSprintInput.justPressed) SwapWeapons();
                 }
                 else
                 {
@@ -2734,6 +2737,240 @@ namespace Demolisher
                 if (laserRotator) Destroy(laserRotator.gameObject);
             }
             if (NetworkServer.active) characterBody.RemoveBuff(RoR2Content.Buffs.ArmorBoost);
+        }
+    }
+    public class LashUltGrab : DemolisherMainState, ISkillState
+    {
+        public static float baseTimeToGrab = 1f;
+        public static float maxHoldTime = 5f;
+        public static float hoverSmoothTime = 0.2f;
+        public float timeToGrab;
+        public List<GrabbedBody> grabbedBodies = [];
+        private bool threw;
+        private float hoverVelocity;
+        public int previousLayerIndex;
+
+        public GenericSkill activatorSkillSlot { get; set; }
+        public override void OnSerialize(NetworkWriter writer)
+        {
+            base.OnSerialize(writer);
+            this.Serialize(base.skillLocator, writer);
+        }
+        public override void OnDeserialize(NetworkReader reader)
+        {
+            base.OnDeserialize(reader);
+            this.Deserialize(base.skillLocator, reader);
+        }
+        public bool IsKeyDownAuthority() => this.IsKeyDownAuthority(base.skillLocator, base.inputBank);
+        public override void OnEnter()
+        {
+            base.OnEnter();
+            timeToGrab = baseTimeToGrab / attackSpeedStat;
+            previousLayerIndex = gameObject.layer;
+            gameObject.layer = LayerIndex.GetAppropriateFakeLayerForTeam(GetTeam()).intVal;
+            if (characterMotor && characterMotor.Motor) characterMotor.Motor.RebuildCollidableLayers();
+            foreach (CharacterBody characterBody in CharacterBody.readOnlyInstancesList)
+            {
+                Vector3 vector3 = characterBody.transform.position - this.characterBody.aimOrigin;
+                if (Physics.Raycast(this.characterBody.aimOrigin, vector3, vector3.magnitude, LayerIndex.world.mask, QueryTriggerInteraction.UseGlobal)) continue;
+                if ((characterBody.teamComponent && teamComponent) && !TeamManager.IsTeamEnemy(characterBody.teamComponent.teamIndex, this.teamComponent.teamIndex)) continue;
+                GrabbedBody grabbedBody = new GrabbedBody
+                {
+                    characterBody = characterBody,
+                    kinematicCharacterMotor = characterBody.characterMotor?.Motor,
+                    layerIndex = characterBody.gameObject.layer,
+                    previousPosition = characterBody.transform.position,
+                    radius = characterBody.radius
+                };
+                grabbedBodies.Add(grabbedBody);
+                characterBody.gameObject.layer = LayerIndex.noCollision.intVal;
+                if (grabbedBody.kinematicCharacterMotor) grabbedBody.kinematicCharacterMotor.RebuildCollidableLayers();
+                //HurtBoxGroup hurtBoxGroup = characterBody.hurtBoxGroup;
+                //if (hurtBoxGroup) hurtBoxGroup.hurtBoxesDeactivatorCounter++;
+            }
+        }
+        public override void FixedUpdate()
+        {
+            base.FixedUpdate();
+            if (characterMotor)
+            {
+                characterMotor.velocity.y = Mathf.Lerp(characterMotor.velocity.y, 0f, fixedAge / hoverSmoothTime);
+            }
+            else if (rigidbody)
+            {
+                Vector3 vector3 = rigidbody.velocity;
+                vector3.y = Mathf.Lerp(vector3.y, 0f, fixedAge / hoverSmoothTime);
+                rigidbody.velocity = vector3;
+            }
+            foreach (GrabbedBody grabbedBody in grabbedBodies)
+            {
+                if (!grabbedBody.characterBody) continue;
+                Vector3 vector3 = Vector3.Lerp(grabbedBody.previousPosition, characterBody.aimOrigin, fixedAge / timeToGrab);
+                if (grabbedBody.characterBody.characterMotor)
+                {
+                    grabbedBody.characterBody.characterMotor.velocity = Vector3.zero;
+                }
+                else if (grabbedBody.characterBody.rigidbody)
+                {
+                    grabbedBody.characterBody.rigidbody.velocity = Vector3.zero;
+                    }
+                    if (grabbedBody.kinematicCharacterMotor)
+                    {
+                        grabbedBody.kinematicCharacterMotor.SetPosition(vector3);
+                    }
+                    else if (grabbedBody.characterBody.rigidbody)
+                    {
+                        grabbedBody.characterBody.rigidbody.position = vector3;
+                    }
+                    else
+                    {
+                        grabbedBody.characterBody.transform.position = vector3;
+                    }
+                }
+            if (!isAuthority) return;
+            if (fixedAge > maxHoldTime || (fixedAge > timeToGrab && !IsKeyDownAuthority()))
+            {
+                threw = true;
+                outer.SetNextState(new LashUltThrow { grabbedBodies = grabbedBodies.ToArray(), threw = threw, previousLayerIndex = previousLayerIndex });
+            }
+        }
+        public override void OnExit()
+        {
+            base.OnExit();
+            if (threw) return;
+            gameObject.layer = previousLayerIndex;
+            if (characterMotor && characterMotor.Motor) characterMotor.Motor.RebuildCollidableLayers();
+            foreach (GrabbedBody grabbedBody in grabbedBodies)
+            {
+                if (!grabbedBody.characterBody) continue;
+                grabbedBody.characterBody.gameObject.layer = grabbedBody.layerIndex;
+                if (grabbedBody.kinematicCharacterMotor) grabbedBody.kinematicCharacterMotor.RebuildCollidableLayers();
+                //HurtBoxGroup hurtBoxGroup = grabbedBody.characterBody.hurtBoxGroup;
+                //if (hurtBoxGroup) hurtBoxGroup.hurtBoxesDeactivatorCounter--;
+            }
+        }
+        public struct GrabbedBody
+        {
+            public CharacterBody characterBody;
+            public int layerIndex;
+            public KinematicCharacterMotor kinematicCharacterMotor;
+            public Vector3 previousPosition;
+            public float radius;
+            public Vector3 randomPosition;
+        }
+        public override InterruptPriority GetMinimumInterruptPriority()
+        {
+            return InterruptPriority.PrioritySkill;
+        }
+    }
+    public class LashUltThrow : DemolisherMainState
+    {
+        public static float baseTimeToThrow = 1f;
+        public static float force = 120f;
+        public static float maxDistance = 9999f;
+        public static float maxRandomPosition = 6f;
+        public GrabbedBody[] grabbedBodies;
+        public float timeToThrow;
+        public Vector3 throwPosition;
+        public Vector3 throwNormal;
+        private float hoverVelocity;
+        public bool threw;
+        public int previousLayerIndex;
+        public override void OnEnter()
+        {
+            base.OnEnter();
+            timeToThrow = baseTimeToThrow / attackSpeedStat;
+            Ray ray = GetAimRay();
+            if (Physics.Raycast(ray, out RaycastHit raycastHit, maxDistance, LayerIndex.world.mask))
+            {
+                throwPosition = raycastHit.point;
+                throwNormal = raycastHit.normal;
+            }
+            else
+            {
+                throwPosition = ray.origin + ray.direction * maxDistance;
+                throwNormal = Vector3.up;
+            }
+            for (int i = 0; i < grabbedBodies.Length; i++)
+            {
+                ref GrabbedBody grabbedBody = ref grabbedBodies[i];
+                grabbedBody.previousPosition = characterBody.aimOrigin;
+                grabbedBody.randomPosition = GetRandomPerpendicular(throwNormal) * (UnityEngine.Random.Range(0f, grabbedBody.characterBody.radius));
+            }
+        }
+        public override void FixedUpdate()
+        {
+            base.FixedUpdate();
+            if (characterMotor)
+            {
+                characterMotor.velocity.y = 0f;
+            }
+            else if (rigidbody)
+            {
+                Vector3 vector3 = rigidbody.velocity;
+                vector3.y = 0f;
+                rigidbody.velocity = vector3;
+            }
+            foreach (GrabbedBody grabbedBody in grabbedBodies)
+            {
+                if (!grabbedBody.characterBody) continue;
+                Vector3 vector3 = Vector3.Lerp(grabbedBody.previousPosition, throwPosition + grabbedBody.characterBody.radius * throwNormal + grabbedBody.randomPosition, fixedAge / timeToThrow);
+                if (grabbedBody.characterBody.characterMotor)
+                {
+                    grabbedBody.characterBody.characterMotor.velocity = Vector3.zero;
+                }
+                else if (grabbedBody.characterBody.rigidbody)
+                {
+                    grabbedBody.characterBody.rigidbody.velocity = Vector3.zero;
+                }
+                if (grabbedBody.kinematicCharacterMotor)
+                {
+                    grabbedBody.kinematicCharacterMotor.SetPosition(vector3);
+                }
+                else if (grabbedBody.characterBody.rigidbody)
+                {
+                    grabbedBody.characterBody.rigidbody.position = vector3;
+                }
+                else
+                {
+                    grabbedBody.characterBody.transform.position = vector3;
+                }
+            }
+            if (!isAuthority) return;
+            if (fixedAge > timeToThrow)
+            {
+                outer.SetNextStateToMain();
+            }
+        }
+        public override void OnExit()
+        {
+            base.OnExit();
+            if (threw)
+            {
+                gameObject.layer = previousLayerIndex;
+                if (characterMotor && characterMotor.Motor) characterMotor.Motor.RebuildCollidableLayers();
+            }
+            foreach (GrabbedBody grabbedBody in grabbedBodies)
+            {
+                if (!grabbedBody.characterBody) continue;
+                grabbedBody.characterBody.gameObject.layer = grabbedBody.layerIndex;
+                if (grabbedBody.kinematicCharacterMotor) grabbedBody.kinematicCharacterMotor.RebuildCollidableLayers();
+                //HurtBoxGroup hurtBoxGroup = grabbedBody.characterBody.hurtBoxGroup;
+                //if (hurtBoxGroup) hurtBoxGroup.hurtBoxesDeactivatorCounter--;
+            }
+        }
+        public override InterruptPriority GetMinimumInterruptPriority()
+        {
+            return InterruptPriority.PrioritySkill;
+        }
+        public static Vector3 GetRandomPerpendicular(Vector3 axis)
+        {
+            Vector3 tangent = Vector3.up;
+            if (Mathf.Abs(Vector3.Dot(axis.normalized, tangent)) > 0.99f) tangent = Vector3.forward;
+            Vector3 perpendicular = Vector3.Cross(axis, tangent).normalized;
+            float randomAngle = UnityEngine.Random.Range(0f, 360f);
+            Quaternion rotation = Quaternion.AngleAxis(randomAngle, axis);
+            return rotation * perpendicular;
         }
     }
     public abstract class DemolisherElevatorBaseState : EntityState

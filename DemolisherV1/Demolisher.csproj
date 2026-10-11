@@ -20,7 +20,7 @@
 		<PackageReference Include="R2API.ProcType" Version="1.0.2" />
 		<PackageReference Include="R2API.Skills" Version="1.0.4" />
 		<PackageReference Include="R2API.Skins" Version="1.4.4" />
-		<PackageReference Include="RiskOfRain2.GameLibs" Version="1.4.0-r.0" />
+		<PackageReference Include="RiskOfRain2.GameLibs" Version="1.5.0-r.1" />
 		<PackageReference Include="UnityEngine.Modules" Version="2021.3.33" />
 		<PackageReference Include="R2API" Version="5.0.5" />
 		<PackageReference Include="Rune580.Mods.RiskOfRain2.RiskOfOptions" Version="2.8.2" />
@@ -34,7 +34,7 @@
 		</Reference>
 		<Reference Include="MetrosexualFruitcake-CustomEmotesAPI">
 			<Private>false</Private>
-			<HintPath>D:\r2modman\RiskOfRain2\profiles\my_mod\BepInEx\plugins\MetrosexualFruitcake-CustomEmotesAPI\CustomEmotesAPI.dll</HintPath>
+			<HintPath>D:\r2modman\RiskOfRain2\profiles\my_mod\BepInEx\CustomEmotesAPI.dll</HintPath>
 		</Reference>
 	</ItemGroup>
 	
